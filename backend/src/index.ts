@@ -7,7 +7,7 @@ import { getSystemPrompt } from "./prompt";
 import { basePrompt } from "./prompt";
 import { nodeBasePrompt } from "./defaults/node";
 import { reactBasePrompt } from "./defaults/react";
-import { resourceUsage } from "process";
+import cors from "cors";
 
 const app = express();
 
@@ -16,6 +16,15 @@ app.listen(3000, () => {
 });
 
 app.use(express.json());
+
+app.use(
+  cors({
+    origin: "http://localhost:5173", // React frontend URL
+    methods: ["POST", "PATCH", "GET", "DELETE", "OPTIONS", "HEAD"],
+    allowedHeaders: ["*"],
+    credentials: true, // Allow credentials (cookies) to be sent
+  })
+);
 
 const client = new OpenAI({
   apiKey: process.env["OPENAI_API_KEY"], // This is the default and can be omitted
@@ -56,7 +65,7 @@ app.post("/template", async (req, res) => {
         Here is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n  - .bolt/prompt'`,
       ],
       //The files that will create the basic structure of our app, these need to run on the UI.
-      uiPrompts: [{ reactBasePrompt }],
+      uiPrompts: [reactBasePrompt],
     });
     return;
   } else if (llmRes === "node") {
@@ -68,7 +77,7 @@ app.post("/template", async (req, res) => {
       Here is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n  - .bolt/prompt'`,
       ],
       //The files that will create the basic structure of our app, these need to run on the UI.
-      uiPrompts: [{ nodeBasePrompt }],
+      uiPrompts: [nodeBasePrompt],
     });
     return;
   } else {

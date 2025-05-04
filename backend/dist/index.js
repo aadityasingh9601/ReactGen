@@ -11,11 +11,18 @@ const prompt_1 = require("./prompt");
 const prompt_2 = require("./prompt");
 const node_1 = require("./defaults/node");
 const react_1 = require("./defaults/react");
+const cors_1 = __importDefault(require("cors"));
 const app = (0, express_1.default)();
 app.listen(3000, () => {
     console.log("Server listening on port 3000");
 });
 app.use(express_1.default.json());
+app.use((0, cors_1.default)({
+    origin: "http://localhost:5173", // React frontend URL
+    methods: ["POST", "PATCH", "GET", "DELETE", "OPTIONS", "HEAD"],
+    allowedHeaders: ["*"],
+    credentials: true, // Allow credentials (cookies) to be sent
+}));
 const client = new openai_1.default({
     apiKey: process.env["OPENAI_API_KEY"], // This is the default and can be omitted
 });
@@ -51,7 +58,7 @@ app.post("/template", async (req, res) => {
         Here is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n  - .bolt/prompt'`,
             ],
             //The files that will create the basic structure of our app, these need to run on the UI.
-            uiPrompts: [{ reactBasePrompt: react_1.reactBasePrompt }],
+            uiPrompts: [react_1.reactBasePrompt],
         });
         return;
     }
@@ -64,7 +71,7 @@ app.post("/template", async (req, res) => {
       Here is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n  - .bolt/prompt'`,
             ],
             //The files that will create the basic structure of our app, these need to run on the UI.
-            uiPrompts: [{ nodeBasePrompt: node_1.nodeBasePrompt }],
+            uiPrompts: [node_1.nodeBasePrompt],
         });
         return;
     }
