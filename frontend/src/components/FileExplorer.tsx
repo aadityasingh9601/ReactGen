@@ -19,6 +19,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
 }) => {
   const createFolderStructure = (files: FileData[]): FolderStructure => {
     const structure: FolderStructure = {};
+    console.log(files);
 
     files.forEach((file) => {
       const parts = file.path.split("/");

@@ -1,13 +1,13 @@
-import { FileData } from '../types';
+import { FileData } from "../types";
 
 // Function to generate mock file data based on the prompt
 export const generateMockFiles = (prompt: string): FileData[] => {
   // In a real application, this would be replaced with actual
   // generated files from an API or backend service
-  
+
   const mockFiles: FileData[] = [
     {
-      path: 'src/App.jsx',
+      path: "src/App.jsx",
       content: `import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
@@ -35,10 +35,11 @@ function App() {
 }
 
 export default App;`,
-      type: 'file'
+      type: "file",
     },
+
     {
-      path: 'src/main.jsx',
+      path: "src/main.jsx",
       content: `import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -49,10 +50,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );`,
-      type: 'file'
+      type: "file",
     },
     {
-      path: 'src/index.css',
+      path: "src/index.css",
       content: `@tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -67,10 +68,11 @@ body {
   margin: 0;
   min-height: 100vh;
 }`,
-      type: 'file'
+      type: "file",
     },
+
     {
-      path: 'src/components/Navbar.jsx',
+      path: "src/components/Navbar.jsx",
       content: `import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -181,10 +183,11 @@ const Navbar = () => {
 };
 
 export default Navbar;`,
-      type: 'file'
+      type: "file",
     },
+
     {
-      path: 'src/components/Footer.jsx',
+      path: "src/components/Footer.jsx",
       content: `import React from 'react';
 
 const Footer = () => {
@@ -232,10 +235,11 @@ const Footer = () => {
 };
 
 export default Footer;`,
-      type: 'file'
+      type: "file",
     },
+
     {
-      path: 'src/pages/Home.jsx',
+      path: "src/pages/Home.jsx",
       content: `import React from 'react';
 
 const Home = () => {
@@ -277,10 +281,11 @@ const Home = () => {
 };
 
 export default Home;`,
-      type: 'file'
+      type: "file",
     },
+
     {
-      path: 'src/pages/About.jsx',
+      path: "src/pages/About.jsx",
       content: `import React from 'react';
 
 const About = () => {
@@ -329,10 +334,11 @@ const About = () => {
 };
 
 export default About;`,
-      type: 'file'
+      type: "file",
     },
+
     {
-      path: 'src/pages/Contact.jsx',
+      path: "src/pages/Contact.jsx",
       content: `import React, { useState } from 'react';
 
 const Contact = () => {
@@ -443,10 +449,10 @@ const Contact = () => {
 };
 
 export default Contact;`,
-      type: 'file'
+      type: "file",
     },
     {
-      path: 'package.json',
+      path: "package.json",
       content: `{
   "name": "generated-react-app",
   "private": true,
@@ -472,10 +478,10 @@ export default Contact;`,
     "vite": "^4.2.0"
   }
 }`,
-      type: 'file'
+      type: "file",
     },
     {
-      path: 'tailwind.config.js',
+      path: "tailwind.config.js",
       content: `/** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -487,10 +493,10 @@ export default {
   },
   plugins: [],
 }`,
-      type: 'file'
+      type: "file",
     },
     {
-      path: 'vite.config.js',
+      path: "vite.config.js",
       content: `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -498,16 +504,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
 })`,
-      type: 'file'
+      type: "file",
     },
     {
-      path: 'public/robots.txt',
+      path: "public/robots.txt",
       content: `# https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Disallow:`,
-      type: 'file'
-    }
+      type: "file",
+    },
   ];
-  
+
   return mockFiles;
 };

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import FileExplorer from "../components/FileExplorer";
 import ExecutionSteps from "../components/ExecutionSteps";
 import CodeViewer from "../components/CodeViewer";
@@ -23,19 +24,25 @@ interface Step {
 }
 
 const ResultsPage: React.FC = () => {
+  const location = useLocation();
+  // console.log(location);
   const [files, setFiles] = useState<FileData[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(location.state);
+  console.log(prompt);
+
   const [panelSizes, setPanelSizes] = useState({ left: 35, right: 65 });
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("code");
   const [steps, setSteps] = useState<Step[]>([]);
+  const [currentStep, setCurrentStep] = useState(0);
 
   async function getTemplate() {
+    console.log("triggered");
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt,
     });
-    console.log(response);
+    //console.log(response);
 
     const { prompts, uiPrompts } = response.data;
 
@@ -46,14 +53,15 @@ const ResultsPage: React.FC = () => {
   }
 
   useEffect(() => {
-    const savedPrompt =
-      localStorage.getItem("generationPrompt") || "A React website";
-    setPrompt(savedPrompt);
-
     //First of all get the template from the backend according to the user's prompt.
+    //setPrompt(location.state);
+
     getTemplate();
 
-    const generatedFiles = generateMockFiles(savedPrompt);
+    const generatedFiles = steps?.map((step) => {
+      return { type: step.type, path: step.title, content: step.code };
+    });
+
     setFiles(generatedFiles);
 
     if (generatedFiles.length > 0) {
@@ -110,6 +118,28 @@ const ResultsPage: React.FC = () => {
     }
   };
 
+  const toggleExpand = (stepId: number) => {
+    setSteps(
+      steps.map((step) =>
+        step.id === stepId ? { ...step, expanded: !step.expanded } : step
+      )
+    );
+  };
+
+  const intervalFunc = () => {
+    setCurrentStep((prev) => {
+      if (prev < steps?.length) {
+        setSteps((steps) =>
+          steps.map((step) =>
+            step.id === prev + 1 ? { ...step, completed: true } : step
+          )
+        );
+        return prev + 1;
+      }
+      return prev;
+    });
+  };
+
   return (
     <div className="h-[calc(100vh-64px)] overflow-hidden">
       <div
@@ -131,7 +161,12 @@ const ResultsPage: React.FC = () => {
             </p>
           </div>
 
-          <ExecutionSteps stepss={steps} />
+          <ExecutionSteps
+            steps={steps}
+            currentStep={currentStep}
+            toggleExpand={toggleExpand}
+            intervalFunc={intervalFunc}
+          />
         </div>
 
         {/* Resizer */}

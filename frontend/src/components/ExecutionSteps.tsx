@@ -19,13 +19,20 @@ interface Step {
 }
 
 interface MyProps {
-  stepss: Step[];
+  steps: Step[];
+  currentStep: any;
+  toggleExpand: any;
+  intervalFunc: any;
 }
 
-const ExecutionSteps: React.FC<MyProps> = ({ stepss }) => {
-  console.log(stepss);
-  const [steps, setSteps] = useState<Step[]>([]);
-  const [currentStep, setCurrentStep] = useState(0);
+const ExecutionSteps: React.FC<MyProps> = ({
+  steps,
+  currentStep,
+  toggleExpand,
+  intervalFunc,
+}) => {
+  console.log(steps);
+  //const [steps, setSteps] = useState<Step[]>(stepsD);
 
   useEffect(() => {
     // const generatedSteps: Step[] = [
@@ -84,33 +91,20 @@ const ExecutionSteps: React.FC<MyProps> = ({ stepss }) => {
     //     code: "Running build command to generate optimized assets",
     //   },
     // ];
+    //setSteps(stepss);
 
-    setSteps(stepss);
-
-    const interval = setInterval(() => {
-      setCurrentStep((prev) => {
-        if (prev < stepss?.length) {
-          setSteps((steps) =>
-            steps.map((step) =>
-              step.id === prev + 1 ? { ...step, completed: true } : step
-            )
-          );
-          return prev + 1;
-        }
-        return prev;
-      });
-    }, 800);
+    const interval = setInterval(intervalFunc, 800);
 
     return () => clearInterval(interval);
   }, []);
 
-  const toggleExpand = (stepId: number) => {
-    setSteps(
-      steps.map((step) =>
-        step.id === stepId ? { ...step, expanded: !step.expanded } : step
-      )
-    );
-  };
+  // const toggleExpand = (stepId: number) => {
+  //   setSteps(
+  //     steps.map((step) =>
+  //       step.id === stepId ? { ...step, expanded: !step.expanded } : step
+  //     )
+  //   );
+  // };
 
   return (
     <div className="p-4">

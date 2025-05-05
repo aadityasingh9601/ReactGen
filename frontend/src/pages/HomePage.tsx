@@ -12,10 +12,8 @@ const HomePage: React.FC = () => {
     if (!prompt.trim()) return;
 
     setIsLoading(true);
-
-    localStorage.setItem("generationPrompt", prompt);
     setIsLoading(false);
-    navigate("/results");
+    navigate("/results", { state: prompt });
   };
 
   return (
