@@ -27,9 +27,10 @@ const ResultsPage: React.FC = () => {
   const location = useLocation();
   // console.log(location);
   const [files, setFiles] = useState<FileData[]>([]);
+  //console.log(files);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
   const [prompt, setPrompt] = useState(location.state);
-  console.log(prompt);
+  //console.log(prompt);
 
   const [panelSizes, setPanelSizes] = useState({ left: 35, right: 65 });
   const [isDragging, setIsDragging] = useState(false);
@@ -38,7 +39,7 @@ const ResultsPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   async function getTemplate() {
-    console.log("triggered");
+    //console.log("triggered");
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt,
     });
@@ -46,27 +47,64 @@ const ResultsPage: React.FC = () => {
 
     const { prompts, uiPrompts } = response.data;
 
+    //Update the steps state variable.
+
     const parsedData = generateSteps(uiPrompts[0]);
     setSteps(parsedData);
-    //Now as we've received the uiPrompts we've to use these to convert the starter files, the xml response
-    //into readable files on our frontend as execution steps. We've to parse the xml data in proper format.
-  }
+    console.log("generated steps" + parsedData);
 
-  useEffect(() => {
-    //First of all get the template from the backend according to the user's prompt.
-    //setPrompt(location.state);
+    //Also, update the files state variable only after steps in being updated properly.
 
-    getTemplate();
-
-    const generatedFiles = steps?.map((step) => {
+    const generatedFiles = parsedData?.map((step) => {
       return { type: step.type, path: step.title, content: step.code };
     });
+    console.log("generated files", generatedFiles);
 
     setFiles(generatedFiles);
 
     if (generatedFiles.length > 0) {
       setSelectedFile(generatedFiles[0]);
     }
+
+    //Now as we've received the uiPrompts we've to use these to convert the starter files, the xml response
+    //into readable files on our frontend as execution steps. We've to parse the xml data in proper format.
+  }
+
+  const intervalFunc = () => {
+    setCurrentStep((prev) => {
+      if (prev < steps?.length) {
+        setSteps((steps) =>
+          steps.map((step) =>
+            step.id === prev + 1 ? { ...step, completed: true } : step
+          )
+        );
+        return prev + 1;
+      }
+      return prev;
+    });
+  };
+
+  useEffect(() => {
+    //First of all get the template from the backend according to the user's prompt.
+    //setPrompt(location.state);
+    //console.log("triggered!");
+
+    getTemplate();
+
+    // const generatedFiles = steps?.map((step) => {
+    //   return { type: step.type, path: step.title, content: step.code };
+    // });
+    // console.log(generatedFiles);
+
+    // setFiles(generatedFiles);
+
+    // if (generatedFiles.length > 0) {
+    //   setSelectedFile(generatedFiles[0]);
+    // }
+
+    // const interval = setInterval(intervalFunc, 800);
+
+    // return () => clearInterval(interval);
   }, [prompt]);
 
   const handleFileSelect = (file: FileData) => {
@@ -124,20 +162,6 @@ const ResultsPage: React.FC = () => {
         step.id === stepId ? { ...step, expanded: !step.expanded } : step
       )
     );
-  };
-
-  const intervalFunc = () => {
-    setCurrentStep((prev) => {
-      if (prev < steps?.length) {
-        setSteps((steps) =>
-          steps.map((step) =>
-            step.id === prev + 1 ? { ...step, completed: true } : step
-          )
-        );
-        return prev + 1;
-      }
-      return prev;
-    });
   };
 
   return (
