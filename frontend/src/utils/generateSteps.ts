@@ -1,5 +1,5 @@
 interface Step {
-  id: number;
+  id: string;
   title: string;
   description: string;
   type: "file" | "dependency" | "command";
@@ -23,20 +23,19 @@ export function generateSteps(data: string): Step[] {
     /<boltAction\s+type="(file|dependency|command)"\s+filePath="([^"]+)">([\s\S]*?)<\/boltAction>/g;
 
   let match;
-  let id = 1;
 
   while ((match = actionRegex.exec(data)) !== null) {
     const [, type, filePath, content] = match;
 
     steps.push({
-      id: id++,
-      title: filePath.trim(), // → file name
-      description: artifactTitle, // → always "Project Files"
-      type: type as Step["type"], // → "file" | "dependency" | "command"
+      id: crypto.randomUUID(), // 👈 Add unique ID
+      title: filePath.trim(),
+      description: artifactTitle,
+      type: type as Step["type"],
       icon: null,
       completed: false,
       expanded: false,
-      code: content.trim(), // → file contents
+      code: content.trim(),
     });
   }
 

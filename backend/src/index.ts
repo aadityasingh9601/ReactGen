@@ -105,16 +105,25 @@ app.post("/chat", async (req, res) => {
     stream: true,
   });
 
+  res.writeHead(200, {
+    "Content-Type": "text/plain",
+    "Transfer-Encoding": "chunked",
+  });
+
+  //Asynchronous iterate over the data chunks.
   for await (const event of stream) {
     if (event.type === "response.output_text.delta") {
       //console.log(event.delta); It alwasys prints a new line, so we used the method down below.
+      res.write(event.delta);
       process.stdout.write(event.delta);
     }
   }
 
-  res.json({
-    message: "received",
-  });
+  res.end();
+
+  // res.json({
+  //   message: "received",
+  // });
   return;
 });
 

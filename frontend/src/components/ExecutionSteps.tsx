@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 interface Step {
-  id: number;
+  id: string;
   title: string;
   description: string;
   type: "file" | "dependency" | "command";
@@ -34,69 +34,69 @@ const ExecutionSteps: React.FC<MyProps> = ({
   console.log(steps);
   //const [steps, setSteps] = useState<Step[]>(stepsD);
 
-  useEffect(() => {
-    // const generatedSteps: Step[] = [
-    //   {
-    //     id: 1,
-    //     title: "Creating project structure",
-    //     description: "Setting up the initial project files and directories",
-    //     type: "file",
-    //     icon: <FileText size={18} />,
-    //     completed: false,
-    //     code: "Created directories: src, public, components, pages, utils",
-    //   },
-    //   {
-    //     id: 2,
-    //     title: "Installing dependencies",
-    //     description: "Adding required packages to package.json",
-    //     type: "dependency",
-    //     icon: <Package size={18} />,
-    //     completed: false,
-    //     code: "Added: react, react-dom, react-router-dom, tailwindcss",
-    //   },
-    //   {
-    //     id: 3,
-    //     title: "Creating components",
-    //     description: "Building reusable UI components",
-    //     type: "file",
-    //     icon: <FileText size={18} />,
-    //     completed: false,
-    //     code: "Created: Navbar.tsx, Button.tsx, Card.tsx, Footer.tsx",
-    //   },
-    //   {
-    //     id: 4,
-    //     title: "Creating pages",
-    //     description: "Building page layouts and content",
-    //     type: "file",
-    //     icon: <FileText size={18} />,
-    //     completed: false,
-    //     code: "Created: HomePage.tsx, AboutPage.tsx, ContactPage.tsx",
-    //   },
-    //   {
-    //     id: 5,
-    //     title: "Setting up routing",
-    //     description: "Configuring navigation between pages",
-    //     type: "file",
-    //     icon: <FileText size={18} />,
-    //     completed: false,
-    //     code: "Set up React Router in App.tsx with routes for all pages",
-    //   },
-    //   {
-    //     id: 6,
-    //     title: "Building project",
-    //     description: "Compiling and optimizing for production",
-    //     type: "command",
-    //     icon: <Terminal size={18} />,
-    //     completed: false,
-    //     code: "Running build command to generate optimized assets",
-    //   },
-    // ];
-    //setSteps(stepss);
+  // useEffect(() => {
+  //   // const generatedSteps: Step[] = [
+  //   //   {
+  //   //     id: 1,
+  //   //     title: "Creating project structure",
+  //   //     description: "Setting up the initial project files and directories",
+  //   //     type: "file",
+  //   //     icon: <FileText size={18} />,
+  //   //     completed: false,
+  //   //     code: "Created directories: src, public, components, pages, utils",
+  //   //   },
+  //   //   {
+  //   //     id: 2,
+  //   //     title: "Installing dependencies",
+  //   //     description: "Adding required packages to package.json",
+  //   //     type: "dependency",
+  //   //     icon: <Package size={18} />,
+  //   //     completed: false,
+  //   //     code: "Added: react, react-dom, react-router-dom, tailwindcss",
+  //   //   },
+  //   //   {
+  //   //     id: 3,
+  //   //     title: "Creating components",
+  //   //     description: "Building reusable UI components",
+  //   //     type: "file",
+  //   //     icon: <FileText size={18} />,
+  //   //     completed: false,
+  //   //     code: "Created: Navbar.tsx, Button.tsx, Card.tsx, Footer.tsx",
+  //   //   },
+  //   //   {
+  //   //     id: 4,
+  //   //     title: "Creating pages",
+  //   //     description: "Building page layouts and content",
+  //   //     type: "file",
+  //   //     icon: <FileText size={18} />,
+  //   //     completed: false,
+  //   //     code: "Created: HomePage.tsx, AboutPage.tsx, ContactPage.tsx",
+  //   //   },
+  //   //   {
+  //   //     id: 5,
+  //   //     title: "Setting up routing",
+  //   //     description: "Configuring navigation between pages",
+  //   //     type: "file",
+  //   //     icon: <FileText size={18} />,
+  //   //     completed: false,
+  //   //     code: "Set up React Router in App.tsx with routes for all pages",
+  //   //   },
+  //   //   {
+  //   //     id: 6,
+  //   //     title: "Building project",
+  //   //     description: "Compiling and optimizing for production",
+  //   //     type: "command",
+  //   //     icon: <Terminal size={18} />,
+  //   //     completed: false,
+  //   //     code: "Running build command to generate optimized assets",
+  //   //   },
+  //   // ];
+  //   //setSteps(stepss);
 
-    const interval = setInterval(intervalFunc, 800);
+  //   const interval = setInterval(intervalFunc, 800);
 
-    return () => clearInterval(interval);
-  }, []);
+  //   return () => clearInterval(interval);
+  // }, []);
 
   // const toggleExpand = (stepId: number) => {
   //   setSteps(

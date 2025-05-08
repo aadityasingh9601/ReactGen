@@ -13,7 +13,7 @@ import { generateSteps } from "../utils/generateSteps";
 type Tab = "code" | "preview";
 
 interface Step {
-  id: number;
+  id: string;
   title: string;
   description: string;
   type: "file" | "dependency" | "command";
@@ -38,74 +38,121 @@ const ResultsPage: React.FC = () => {
   const [steps, setSteps] = useState<Step[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
 
+  async function llmResponse(prompts: any) {
+    const response = await axios.post(`${BACKEND_URL}/chat`, {
+      messages: prompts,
+    });
+
+    console.log(response);
+    const parsedLLMData = generateSteps(response.data);
+    console.log(parsedLLMData);
+
+    //Find all the brand new files and store them in an array.
+
+    //Update the steps in such a way that, if LLM sends a file that already exists, then it replaces the current
+    //file with the file returned by the LLM.
+    setSteps((prevSteps) =>
+      prevSteps.map((step) => {
+        //Check if a file that the LLM has sent us already exists in the current files or not.
+        const existingFile = parsedLLMData.find(
+          (data) => data.title === step.title
+        );
+        //If file already exists, update the file with the new data.
+        return existingFile ? existingFile : step;
+      })
+    );
+
+    //Add the brand new files also to the steps.
+    const oldTitles = steps.map((s) => {
+      return s.title;
+    });
+
+    let brandNewData = [];
+
+    for (let e of parsedLLMData) {
+      if (!oldTitles.includes(e.title)) {
+        brandNewData.push(e);
+      }
+    }
+
+    setSteps((prevSteps) => {
+      return [...prevSteps, ...brandNewData];
+    });
+  }
+
   async function getTemplate() {
-    //console.log("triggered");
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt,
     });
     //console.log(response);
 
     const { prompts, uiPrompts } = response.data;
+    //console.log(prompts);
+    const LLMprompts = [
+      {
+        role: "user",
+        content: prompt,
+      },
+      {
+        role: "user",
+        content: prompts[0],
+      },
+      {
+        role: "user",
+        content: prompts[1],
+      },
+    ];
+    console.log(LLMprompts);
 
     //Update the steps state variable.
 
     const parsedData = generateSteps(uiPrompts[0]);
-    setSteps(parsedData);
-    console.log("generated steps" + parsedData);
+    setSteps(
+      parsedData.map((step) => {
+        return { ...step, completed: true };
+      })
+    );
+
+    console.log(parsedData);
+    llmResponse(LLMprompts);
 
     //Also, update the files state variable only after steps in being updated properly.
+  }
 
-    const generatedFiles = parsedData?.map((step) => {
+  const intervalFunc = () => {
+    // setCurrentStep((prev) => {
+    //   if (prev < steps?.length) {
+    //     setSteps((steps) =>
+    //       steps.map((step) =>
+    //         step.id === prev + 1 ? { ...step, completed: true } : step
+    //       )
+    //     );
+    //     return prev + 1;
+    //   }
+    //   return prev;
+    // });
+    console.log("I am interval function.");
+  };
+
+  useEffect(() => {
+    //First of all get the template from the backend according to the user's prompt.
+    getTemplate();
+
+    //Then, send request to the LLM with the template and other information to generate other files too.
+  }, []);
+
+  useEffect(() => {
+    const generatedFiles = steps?.map((step) => {
       return { type: step.type, path: step.title, content: step.code };
     });
-    console.log("generated files", generatedFiles);
+    console.log(generatedFiles);
 
     setFiles(generatedFiles);
 
     if (generatedFiles.length > 0) {
       setSelectedFile(generatedFiles[0]);
     }
-
-    //Now as we've received the uiPrompts we've to use these to convert the starter files, the xml response
-    //into readable files on our frontend as execution steps. We've to parse the xml data in proper format.
-  }
-
-  const intervalFunc = () => {
-    setCurrentStep((prev) => {
-      if (prev < steps?.length) {
-        setSteps((steps) =>
-          steps.map((step) =>
-            step.id === prev + 1 ? { ...step, completed: true } : step
-          )
-        );
-        return prev + 1;
-      }
-      return prev;
-    });
-  };
-
-  useEffect(() => {
-    //First of all get the template from the backend according to the user's prompt.
-    //setPrompt(location.state);
-    //console.log("triggered!");
-
-    getTemplate();
-
-    // const generatedFiles = steps?.map((step) => {
-    //   return { type: step.type, path: step.title, content: step.code };
-    // });
-    // console.log(generatedFiles);
-
-    // setFiles(generatedFiles);
-
-    // if (generatedFiles.length > 0) {
-    //   setSelectedFile(generatedFiles[0]);
-    // }
-
-    // const interval = setInterval(intervalFunc, 800);
-
-    // return () => clearInterval(interval);
-  }, [prompt]);
+  }, [steps]);
 
   const handleFileSelect = (file: FileData) => {
     setSelectedFile(file);
@@ -156,7 +203,7 @@ const ResultsPage: React.FC = () => {
     }
   };
 
-  const toggleExpand = (stepId: number) => {
+  const toggleExpand = (stepId: string) => {
     setSteps(
       steps.map((step) =>
         step.id === stepId ? { ...step, expanded: !step.expanded } : step
