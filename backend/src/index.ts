@@ -89,7 +89,7 @@ app.post("/template", async (req, res) => {
 
 app.post("/chat", async (req, res) => {
   const messages = req.body.messages;
-  //console.log(messages);
+  console.log(messages);
 
   const stream = await client.responses.create({
     model: "gpt-3.5-turbo",

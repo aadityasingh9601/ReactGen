@@ -20,16 +20,21 @@ export function generateSteps(data: string): Step[] {
   const artifactTitle = artifactMatch ? artifactMatch[1] : "Project Files";
 
   const actionRegex =
-    /<boltAction\s+type="(file|dependency|command)"\s+filePath="([^"]+)">([\s\S]*?)<\/boltAction>/g;
+    /<boltAction\s+type="(file|dependency|command|shell)"(?:\s+filePath="([^"]+)")?>\s*([\s\S]*?)<\/boltAction>/g;
 
   let match;
 
   while ((match = actionRegex.exec(data)) !== null) {
-    const [, type, filePath, content] = match;
+    let [_, type, filePath, content] = match;
+
+    // Normalize "shell" to "command"
+    if (type === "shell") {
+      type = "command";
+    }
 
     steps.push({
-      id: crypto.randomUUID(), // 👈 Add unique ID
-      title: filePath.trim(),
+      id: crypto.randomUUID(),
+      title: filePath?.trim() || `${type.toUpperCase()} Step`,
       description: artifactTitle,
       type: type as Step["type"],
       icon: null,

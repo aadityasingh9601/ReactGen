@@ -142,9 +142,14 @@ const ResultsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const generatedFiles = steps?.map((step) => {
-      return { type: step.type, path: step.title, content: step.code };
-    });
+    const generatedFiles = steps
+      ?.filter((step) => step.type === "file")
+      .map((step) => ({
+        type: step.type,
+        path: step.title,
+        content: step.code,
+      }));
+
     console.log(generatedFiles);
 
     setFiles(generatedFiles);
