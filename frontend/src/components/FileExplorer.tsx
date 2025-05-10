@@ -48,6 +48,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   };
 
   const folderStructure = createFolderStructure(files);
+  console.log(folderStructure);
 
   const renderFolderStructure = (
     structure: FolderStructure,

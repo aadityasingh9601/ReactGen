@@ -9,6 +9,8 @@ import { Code, Globe } from "lucide-react";
 import axios from "axios";
 import { BACKEND_URL } from "../config";
 import { generateSteps } from "../utils/generateSteps";
+import { useWebContainer } from "../hooks/useWebContainer";
+import Preview from "../components/Preview";
 
 type Tab = "code" | "preview";
 
@@ -24,6 +26,7 @@ interface Step {
 }
 
 const ResultsPage: React.FC = () => {
+  const webContainer = useWebContainer();
   const location = useLocation();
   // console.log(location);
   const [files, setFiles] = useState<FileData[]>([]);
@@ -47,36 +50,30 @@ const ResultsPage: React.FC = () => {
     const parsedLLMData = generateSteps(response.data);
     console.log(parsedLLMData);
 
-    //Find all the brand new files and store them in an array.
-
     //Update the steps in such a way that, if LLM sends a file that already exists, then it replaces the current
     //file with the file returned by the LLM.
-    setSteps((prevSteps) =>
-      prevSteps.map((step) => {
-        //Check if a file that the LLM has sent us already exists in the current files or not.
-        const existingFile = parsedLLMData.find(
+    setSteps((prevSteps) => {
+      // Create a map of existing titles for O(1) lookups
+      const existingFilesTitles = new Map(
+        prevSteps.map((step) => [step.title, true])
+      );
+
+      // Process all new data in one pass
+      const updatedExistingSteps = prevSteps.map((step) => {
+        const matchingFile = parsedLLMData.find(
           (data) => data.title === step.title
         );
-        //If file already exists, update the file with the new data.
-        return existingFile ? existingFile : step;
-      })
-    );
+        return matchingFile ? matchingFile : step;
+      });
 
-    //Add the brand new files also to the steps.
-    const oldTitles = steps.map((s) => {
-      return s.title;
-    });
+      //Find all the brand new files (not in the current steps) from the LLM respnose and store them in an
+      // array.
+      const brandNewData = parsedLLMData.filter(
+        (data) => !existingFilesTitles.has(data.title)
+      );
 
-    let brandNewData = [];
-
-    for (let e of parsedLLMData) {
-      if (!oldTitles.includes(e.title)) {
-        brandNewData.push(e);
-      }
-    }
-
-    setSteps((prevSteps) => {
-      return [...prevSteps, ...brandNewData];
+      // Return updated array in a single state update
+      return [...updatedExistingSteps, ...brandNewData];
     });
   }
 
@@ -158,6 +155,77 @@ const ResultsPage: React.FC = () => {
       setSelectedFile(generatedFiles[0]);
     }
   }, [steps]);
+
+  interface WebContainerFile {
+    file: {
+      contents: string;
+    };
+  }
+
+  interface WebContainerDirectory {
+    directory: Record<string, WebContainerFile | WebContainerDirectory>;
+  }
+
+  type WebContainerStructure = Record<
+    string,
+    WebContainerFile | WebContainerDirectory
+  >;
+
+  //Run an effect to create the correct folder structure for web containers.
+  useEffect(() => {
+    const orignalFiles = files;
+
+    function convertToWebContainerStructure(
+      files: FileData[]
+    ): WebContainerStructure {
+      const wcFolderStructure: WebContainerStructure = {};
+
+      files.forEach((fileData) => {
+        // Skip non-file entries (dependencies or commands)
+        if (fileData.type !== "file") return;
+
+        // Split the path into segments
+        const pathSegments = fileData.path.split("/");
+        const fileName = pathSegments.pop() || "";
+
+        // Create nested directories and place the file
+        let currentLevel = wcFolderStructure;
+
+        // Create directories
+        for (let i = 0; i < pathSegments.length; i++) {
+          const segment = pathSegments[i];
+
+          // Skip empty segments
+          if (!segment) continue;
+
+          // Create directory if it doesn't exist
+          if (!currentLevel[segment]) {
+            currentLevel[segment] = {
+              directory: {},
+            };
+          }
+
+          // Navigate to the next level
+          currentLevel = (currentLevel[segment] as WebContainerDirectory)
+            .directory;
+        }
+
+        // Add the file at the correct level
+        currentLevel[fileName] = {
+          file: {
+            contents: fileData.content || "",
+          },
+        };
+      });
+
+      return wcFolderStructure;
+    }
+
+    const wcFolderStructure = convertToWebContainerStructure(orignalFiles);
+    console.log(wcFolderStructure);
+
+    webContainer?.mount(wcFolderStructure);
+  }, [files, webContainer]);
 
   const handleFileSelect = (file: FileData) => {
     setSelectedFile(file);
@@ -315,12 +383,7 @@ const ResultsPage: React.FC = () => {
                     </div>
                   )
                 ) : (
-                  <iframe
-                    title="Website Preview"
-                    src="about:blank"
-                    className="w-full h-full bg-white"
-                    sandbox="allow-scripts allow-same-origin"
-                  />
+                  <Preview webContainer={webContainer} />
                 )}
               </div>
             </div>
