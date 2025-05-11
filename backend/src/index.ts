@@ -92,7 +92,7 @@ app.post("/chat", async (req, res) => {
   console.log(messages);
 
   const stream = await client.responses.create({
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o",
     temperature: 0.2,
     max_output_tokens: 10000,
     input: [

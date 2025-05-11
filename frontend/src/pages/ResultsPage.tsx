@@ -33,6 +33,16 @@ const ResultsPage: React.FC = () => {
   //console.log(files);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
   const [prompt, setPrompt] = useState(location.state);
+  const [followUpPrompt, setfollowUpPrompt] = useState("");
+  const [llmMessages, setllmMessages] = useState<
+    { role: string; content: any }[]
+  >([]);
+  //These contains all the messages that we've to send to the LLM, as llm sends responses from it's side, we
+  //also have to add them in llmMessages so that we can ask follow up questions and ask it to make some changes
+  //to our website.
+  //role:"assistant" will be used when we add the LLM's response in the message.
+  //As user keep asking follow up prompts, we'll keep adding them to the llmMessages, so that llm can respond
+  //accordingly and give you proper responses.
   //console.log(prompt);
 
   const [panelSizes, setPanelSizes] = useState({ left: 35, right: 65 });
@@ -49,6 +59,17 @@ const ResultsPage: React.FC = () => {
     console.log(response);
     const parsedLLMData = generateSteps(response.data);
     console.log(parsedLLMData);
+
+    //Add the llm response also to the LLm messages, as we'll be needing this to ask follow up questions.
+    setllmMessages((x) => {
+      return [
+        ...x,
+        {
+          role: "assistant",
+          content: response.data,
+        },
+      ];
+    });
 
     //Update the steps in such a way that, if LLM sends a file that already exists, then it replaces the current
     //file with the file returned by the LLM.
@@ -100,6 +121,9 @@ const ResultsPage: React.FC = () => {
       },
     ];
     console.log(LLMprompts);
+
+    //Update the llmMessages for further respones.
+    setllmMessages(LLMprompts);
 
     //Update the steps state variable.
 
@@ -311,6 +335,39 @@ const ResultsPage: React.FC = () => {
             toggleExpand={toggleExpand}
             intervalFunc={intervalFunc}
           />
+          <div className="flex px-4 rounded-md">
+            <textarea
+              placeholder="Follow up prompts"
+              value={followUpPrompt}
+              onChange={(e) => {
+                setfollowUpPrompt(e.target.value);
+              }}
+              className="w-full"
+            ></textarea>
+            <button
+              className=" bg-blue-200 px-2"
+              onClick={() => {
+                //Add further logic here to ask follow up questions.
+                //The new message that gets created here, also need to be added to the llm messages, so that
+                //we can just send request to the LLM with that and it responds properly to our follow up
+                //prompts and changes.
+                const newMessage = {
+                  role: "user",
+                  content: followUpPrompt,
+                };
+
+                //Send the old message plus the new message also.
+                llmResponse([...llmMessages, newMessage]);
+
+                //Update the llmMessages for further requests.
+                setllmMessages((prevM) => {
+                  return [...prevM, newMessage];
+                });
+              }}
+            >
+              Send
+            </button>
+          </div>
         </div>
 
         {/* Resizer */}

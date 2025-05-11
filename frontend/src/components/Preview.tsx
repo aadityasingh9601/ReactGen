@@ -1,4 +1,3 @@
-import React from "react";
 import { WebContainer } from "@webcontainer/api";
 import { useEffect, useState } from "react";
 
@@ -8,18 +7,20 @@ interface MyProps {
 
 export default function Preview({ webContainer }: MyProps) {
   const [url, setUrl] = useState("");
+  const [installOutput, setInstallOutput] = useState(""); // State to hold npm install output
 
   async function main() {
     //Install the dependencies.
     const installProcess = await webContainer?.spawn("npm", ["install"]);
-
-    // installProcess?.output.pipeTo(
-    //   new WritableStream({
-    //     write(data) {
-    //       console.log(data);
-    //     },
-    //   })
-    // );
+    let currentOutput = "";
+    installProcess?.output.pipeTo(
+      new WritableStream({
+        write(data) {
+          currentOutput += data;
+          setInstallOutput(currentOutput); // Update state with output
+        },
+      })
+    );
 
     const installExitCode = await installProcess?.exit;
 
@@ -42,6 +43,25 @@ export default function Preview({ webContainer }: MyProps) {
   }, []);
 
   return (
-    <iframe title="Website Preview" src={url} height={"100%"} width={"100%"} />
+    <div style={{ height: "100%", width: "100%" }}>
+      {url === "" && (
+        <div
+          style={{
+            backgroundColor: "white",
+            margin: "0",
+          }}
+        >
+          Preview is being generated based on the code
+        </div>
+      )}
+      {url && (
+        <iframe
+          title="Website Preview"
+          src={url}
+          height={"100%"}
+          width={"100%"}
+        />
+      )}
+    </div>
   );
 }
