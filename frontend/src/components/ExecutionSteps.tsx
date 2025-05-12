@@ -31,7 +31,7 @@ const ExecutionSteps: React.FC<MyProps> = ({
   toggleExpand,
   intervalFunc,
 }) => {
-  console.log(steps);
+  //console.log(steps);
   //const [steps, setSteps] = useState<Step[]>(stepsD);
 
   // useEffect(() => {

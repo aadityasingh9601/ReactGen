@@ -8,7 +8,7 @@ import { generateMockFiles } from "../utils/mockData";
 import { Code, Globe } from "lucide-react";
 import axios from "axios";
 import { BACKEND_URL } from "../config";
-import { generateSteps } from "../utils/generateSteps";
+import { createStreamingStepsGenerator } from "../utils/generateSteps";
 import { useWebContainer } from "../hooks/useWebContainer";
 import Preview from "../components/Preview";
 
@@ -28,6 +28,8 @@ interface Step {
 const ResultsPage: React.FC = () => {
   const webContainer = useWebContainer();
   const location = useLocation();
+
+  const generateSteps = createStreamingStepsGenerator();
   // console.log(location);
   const [files, setFiles] = useState<FileData[]>([]);
   //console.log(files);
@@ -50,52 +52,83 @@ const ResultsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>("code");
   const [steps, setSteps] = useState<Step[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
+  const [answer, setAnswer] = useState("");
 
   async function llmResponse(prompts: any) {
-    const response = await axios.post(`${BACKEND_URL}/chat`, {
-      messages: prompts,
+    // const response = await axios.post(`${BACKEND_URL}/chat`, {
+    //   messages: prompts,
+    // });
+
+    const response = await fetch(`${BACKEND_URL}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ messages: prompts }),
     });
 
-    console.log(response);
-    const parsedLLMData = generateSteps(response.data);
-    console.log(parsedLLMData);
+    if (!response.ok || !response.body) {
+      throw new Error("Failed to get response stream");
+    }
+
+    // console.log(response);
+
+    // Here we start prepping for the streaming response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const loopRunner = true;
+
+    while (loopRunner) {
+      // Here we start reading the stream, until its done.
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+      const decodedChunk = decoder.decode(value, { stream: true });
+      console.log(decodedChunk);
+      //Send the data chunk by chunk .
+      const parsedLLMData = generateSteps(decodedChunk);
+      setAnswer((answer) => answer + decodedChunk); // update state with new chunk
+
+      // setSteps((prevSteps) => {
+      //   // Create a map of existing titles for O(1) lookups
+      //   const existingFilesTitles = new Map(
+      //     prevSteps.map((step) => [step.title, true])
+      //   );
+
+      //   // Process all new data in one pass
+      //   const updatedExistingSteps = prevSteps.map((step) => {
+      //     const matchingFile = parsedLLMData.find(
+      //       (data) => data.title === step.title
+      //     );
+      //     return matchingFile ? matchingFile : step;
+      //   });
+
+      //   //Find all the brand new files (not in the current steps) from the LLM respnose and store them in an
+      //   // array.
+      //   const brandNewData = parsedLLMData.filter(
+      //     (data) => !existingFilesTitles.has(data.title)
+      //   );
+
+      //   // Return updated array in a single state update
+      //   return [...updatedExistingSteps, ...brandNewData];
+      // });
+    }
+    //console.log(parsedLLMData);
 
     //Add the llm response also to the LLm messages, as we'll be needing this to ask follow up questions.
-    setllmMessages((x) => {
-      return [
-        ...x,
-        {
-          role: "assistant",
-          content: response.data,
-        },
-      ];
-    });
+    // setllmMessages((x) => {
+    //   return [
+    //     ...x,
+    //     {
+    //       role: "assistant",
+    //       content: response.data,
+    //     },
+    //   ];
+    // });
 
     //Update the steps in such a way that, if LLM sends a file that already exists, then it replaces the current
     //file with the file returned by the LLM.
-    setSteps((prevSteps) => {
-      // Create a map of existing titles for O(1) lookups
-      const existingFilesTitles = new Map(
-        prevSteps.map((step) => [step.title, true])
-      );
-
-      // Process all new data in one pass
-      const updatedExistingSteps = prevSteps.map((step) => {
-        const matchingFile = parsedLLMData.find(
-          (data) => data.title === step.title
-        );
-        return matchingFile ? matchingFile : step;
-      });
-
-      //Find all the brand new files (not in the current steps) from the LLM respnose and store them in an
-      // array.
-      const brandNewData = parsedLLMData.filter(
-        (data) => !existingFilesTitles.has(data.title)
-      );
-
-      // Return updated array in a single state update
-      return [...updatedExistingSteps, ...brandNewData];
-    });
   }
 
   async function getTemplate() {
@@ -134,7 +167,7 @@ const ResultsPage: React.FC = () => {
       })
     );
 
-    console.log(parsedData);
+    //console.log(parsedData);
     llmResponse(LLMprompts);
 
     //Also, update the files state variable only after steps in being updated properly.
@@ -171,7 +204,7 @@ const ResultsPage: React.FC = () => {
         content: step.code,
       }));
 
-    console.log(generatedFiles);
+    //console.log(generatedFiles);
 
     setFiles(generatedFiles);
 
@@ -246,7 +279,7 @@ const ResultsPage: React.FC = () => {
     }
 
     const wcFolderStructure = convertToWebContainerStructure(orignalFiles);
-    console.log(wcFolderStructure);
+    //console.log(wcFolderStructure);
 
     webContainer?.mount(wcFolderStructure);
   }, [files, webContainer]);
@@ -309,145 +342,149 @@ const ResultsPage: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-hidden">
-      <div
-        id="results-container"
-        className="flex h-full"
-        style={{ cursor: isDragging ? "col-resize" : "auto" }}
-      >
-        {/* Left panel: Execution Steps & Files Overview */}
+    <>
+      <div className="bg-blue-300">{JSON.stringify(answer)}</div>
+      {/* <div className="bg-blue-200">{JSON.stringify(answer)}</div> */}
+      <div className="h-[calc(100vh-64px)] overflow-hidden">
         <div
-          className="bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto"
-          style={{ width: `${panelSizes.left}%` }}
+          id="results-container"
+          className="flex h-full"
+          style={{ cursor: isDragging ? "col-resize" : "auto" }}
         >
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-              Generated from prompt:
-            </h2>
-            <p className="text-slate-600 dark:text-slate-300 mt-1 italic">
-              {prompt}
-            </p>
-          </div>
-
-          <ExecutionSteps
-            steps={steps}
-            currentStep={currentStep}
-            toggleExpand={toggleExpand}
-            intervalFunc={intervalFunc}
-          />
-          <div className="flex px-4 rounded-md">
-            <textarea
-              placeholder="Follow up prompts"
-              value={followUpPrompt}
-              onChange={(e) => {
-                setfollowUpPrompt(e.target.value);
-              }}
-              className="w-full"
-            ></textarea>
-            <button
-              className=" bg-blue-200 px-2"
-              onClick={() => {
-                //Add further logic here to ask follow up questions.
-                //The new message that gets created here, also need to be added to the llm messages, so that
-                //we can just send request to the LLM with that and it responds properly to our follow up
-                //prompts and changes.
-                const newMessage = {
-                  role: "user",
-                  content: followUpPrompt,
-                };
-
-                //Send the old message plus the new message also.
-                llmResponse([...llmMessages, newMessage]);
-
-                //Update the llmMessages for further requests.
-                setllmMessages((prevM) => {
-                  return [...prevM, newMessage];
-                });
-              }}
-            >
-              Send
-            </button>
-          </div>
-        </div>
-
-        {/* Resizer */}
-        <div
-          className="w-2 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize z-10 relative"
-          onMouseDown={handleMouseDown}
-        >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 bg-slate-400 dark:bg-slate-500 rounded"></div>
-        </div>
-
-        {/* Right panel: File Explorer & Code/Preview Viewer */}
-        <div
-          className="bg-slate-50 dark:bg-slate-900 flex flex-col"
-          style={{ width: `${panelSizes.right}%` }}
-        >
-          <div className="h-full flex">
-            {/* File Explorer sidebar */}
-            <div className="w-72 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
-              <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                  File Explorer
-                </h2>
-              </div>
-              <FileExplorer
-                files={files}
-                selectedFile={selectedFile}
-                onSelectFile={handleFileSelect}
-              />
+          {/* Left panel: Execution Steps & Files Overview */}
+          <div
+            className="bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto"
+            style={{ width: `${panelSizes.left}%` }}
+          >
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                Generated from prompt:
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300 mt-1 italic">
+                {prompt}
+              </p>
             </div>
 
-            {/* Code/Preview viewer */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Tabs */}
-              <div className="flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                <button
-                  onClick={() => setActiveTab("code")}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === "code"
-                      ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-                >
-                  <Code size={16} />
-                  Code
-                </button>
-                <button
-                  onClick={() => setActiveTab("preview")}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === "preview"
-                      ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-                >
-                  <Globe size={16} />
-                  Preview
-                </button>
+            <ExecutionSteps
+              steps={steps}
+              currentStep={currentStep}
+              toggleExpand={toggleExpand}
+              intervalFunc={intervalFunc}
+            />
+            <div className="flex px-4 rounded-md">
+              <textarea
+                placeholder="Follow up prompts"
+                value={followUpPrompt}
+                onChange={(e) => {
+                  setfollowUpPrompt(e.target.value);
+                }}
+                className="w-full"
+              ></textarea>
+              <button
+                className=" bg-blue-200 px-2"
+                onClick={() => {
+                  //Add further logic here to ask follow up questions.
+                  //The new message that gets created here, also need to be added to the llm messages, so that
+                  //we can just send request to the LLM with that and it responds properly to our follow up
+                  //prompts and changes.
+                  const newMessage = {
+                    role: "user",
+                    content: followUpPrompt,
+                  };
+
+                  //Send the old message plus the new message also.
+                  llmResponse([...llmMessages, newMessage]);
+
+                  //Update the llmMessages for further requests.
+                  setllmMessages((prevM) => {
+                    return [...prevM, newMessage];
+                  });
+                }}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+
+          {/* Resizer */}
+          <div
+            className="w-2 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize z-10 relative"
+            onMouseDown={handleMouseDown}
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 bg-slate-400 dark:bg-slate-500 rounded"></div>
+          </div>
+
+          {/* Right panel: File Explorer & Code/Preview Viewer */}
+          <div
+            className="bg-slate-50 dark:bg-slate-900 flex flex-col"
+            style={{ width: `${panelSizes.right}%` }}
+          >
+            <div className="h-full flex">
+              {/* File Explorer sidebar */}
+              <div className="w-72 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                    File Explorer
+                  </h2>
+                </div>
+                <FileExplorer
+                  files={files}
+                  selectedFile={selectedFile}
+                  onSelectFile={handleFileSelect}
+                />
               </div>
 
-              {/* Content area */}
-              <div className="flex-1 overflow-hidden">
-                {activeTab === "code" ? (
-                  selectedFile ? (
-                    <CodeViewer
-                      file={selectedFile}
-                      onContentChange={handleContentChange}
-                    />
+              {/* Code/Preview viewer */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Tabs */}
+                <div className="flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                  <button
+                    onClick={() => setActiveTab("code")}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === "code"
+                        ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <Code size={16} />
+                    Code
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("preview")}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === "preview"
+                        ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <Globe size={16} />
+                    Preview
+                  </button>
+                </div>
+
+                {/* Content area */}
+                <div className="flex-1 overflow-hidden">
+                  {activeTab === "code" ? (
+                    selectedFile ? (
+                      <CodeViewer
+                        file={selectedFile}
+                        onContentChange={handleContentChange}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
+                        <p>Select a file to view its contents</p>
+                      </div>
+                    )
                   ) : (
-                    <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
-                      <p>Select a file to view its contents</p>
-                    </div>
-                  )
-                ) : (
-                  <Preview webContainer={webContainer} />
-                )}
+                    <Preview webContainer={webContainer} />
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

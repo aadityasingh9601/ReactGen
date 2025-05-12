@@ -9,40 +9,46 @@ interface Step {
   code?: string;
 }
 
-export function generateSteps(data: string): Step[] {
-  if (typeof data !== "string") {
-    console.warn("Expected a string but got:", typeof data);
-    return [];
-  }
+export function createStreamingStepsGenerator() {
+  let data = "";
 
-  const steps: Step[] = [];
-  const artifactMatch = data.match(/<boltArtifact[^>]*title="([^"]+)"[^>]*>/);
-  const artifactTitle = artifactMatch ? artifactMatch[1] : "Project Files";
+  return function generateSteps(chunk: string): Step[] {
+    data += chunk;
 
-  const actionRegex =
-    /<boltAction\s+type="(file|dependency|command|shell)"(?:\s+filePath="([^"]+)")?>\s*([\s\S]*?)<\/boltAction>/g;
-
-  let match;
-
-  while ((match = actionRegex.exec(data)) !== null) {
-    let [_, type, filePath, content] = match;
-
-    // Normalize "shell" to "command"
-    if (type === "shell") {
-      type = "command";
+    if (typeof data !== "string") {
+      console.warn("Expected a string but got:", typeof data);
+      return [];
     }
 
-    steps.push({
-      id: crypto.randomUUID(),
-      title: filePath?.trim() || `${type.toUpperCase()} Step`,
-      description: artifactTitle,
-      type: type as Step["type"],
-      icon: null,
-      completed: false,
-      expanded: false,
-      code: content.trim(),
-    });
-  }
+    const steps: Step[] = [];
+    const artifactMatch = data.match(/<boltArtifact[^>]*title="([^"]+)"[^>]*>/);
+    const artifactTitle = artifactMatch ? artifactMatch[1] : "Project Files";
 
-  return steps;
+    const actionRegex =
+      /<boltAction\s+type="(file|dependency|command|shell)"(?:\s+filePath="([^"]+)")?>\s*([\s\S]*?)<\/boltAction>/g;
+
+    let match;
+
+    while ((match = actionRegex.exec(data)) !== null) {
+      let [_, type, filePath, content] = match;
+
+      // Normalize "shell" to "command"
+      if (type === "shell") {
+        type = "command";
+      }
+
+      steps.push({
+        id: crypto.randomUUID(),
+        title: filePath?.trim() || `${type.toUpperCase()} Step`,
+        description: artifactTitle,
+        type: type as Step["type"],
+        icon: null,
+        completed: false,
+        expanded: false,
+        code: content.trim(),
+      });
+    }
+
+    return steps;
+  };
 }
