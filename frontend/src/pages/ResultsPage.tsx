@@ -8,9 +8,10 @@ import { generateMockFiles } from "../utils/mockData";
 import { Code, Globe } from "lucide-react";
 import axios from "axios";
 import { BACKEND_URL } from "../config";
-import { createStreamingStepsGenerator } from "../utils/generateSteps";
+import { generateSteps } from "../utils/generateSteps";
 import { useWebContainer } from "../hooks/useWebContainer";
 import Preview from "../components/Preview";
+import StreamParser from "../utils/streaming";
 
 type Tab = "code" | "preview";
 
@@ -26,10 +27,9 @@ interface Step {
 }
 
 const ResultsPage: React.FC = () => {
+  console.log("rendered");
   const webContainer = useWebContainer();
   const location = useLocation();
-
-  const generateSteps = createStreamingStepsGenerator();
   // console.log(location);
   const [files, setFiles] = useState<FileData[]>([]);
   //console.log(files);
@@ -53,12 +53,78 @@ const ResultsPage: React.FC = () => {
   const [steps, setSteps] = useState<Step[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [answer, setAnswer] = useState("");
+  const [collectedBlocks, setCollectedBlocks] = useState<string[]>([]);
+
+  // async function llmResponse(prompts: any) {
+  //   // Create the parser as a local variable
+  //   const parser = new StreamParser();
+
+  //   const response = await fetch(`${BACKEND_URL}/chat`, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //     },
+  //     body: JSON.stringify({ messages: prompts }),
+  //   });
+
+  //   if (!response.ok || !response.body) {
+  //     throw new Error("Failed to get response stream");
+  //   }
+
+  //   const reader = response.body.getReader();
+  //   const decoder = new TextDecoder();
+
+  //   try {
+  //     // Store all found tags in this local array for debugging
+  //     const allFoundTags: string[] = [];
+
+  //     console.log("Starting stream processing...");
+
+  //     while (true) {
+  //       const { value, done } = await reader.read();
+  //       if (done) {
+  //         console.log("Stream complete");
+  //         break;
+  //       }
+
+  //       const chunk = decoder.decode(value, { stream: true });
+
+  //       // Log chunk for debugging (first 50 chars)
+  //       console.log(
+  //         `Received chunk (${chunk.length} chars): ${chunk.slice(0, 50)}`
+  //       );
+
+  //       // Process the chunk
+  //       const extractedTags = parser.processChunk(chunk);
+
+  //       if (extractedTags.length > 0) {
+  //         console.log(
+  //           `Found ${extractedTags.length} complete tags in this chunk`
+  //         );
+
+  //         // Add to our debug array
+  //         allFoundTags.push(...extractedTags);
+  //         console.log(allFoundTags);
+
+  //         // Update React state with the new tags
+  //         setCollectedBlocks((prev) => [...prev, ...extractedTags]);
+  //       }
+  //     }
+
+  //     console.log(`Total tags found: ${allFoundTags.length}`);
+
+  //     // Debug: check if any tags were found
+  //     if (allFoundTags.length === 0) {
+  //       console.warn("No tags were found in the entire stream!");
+  //       // Debug output the first 100 chars received to check format
+  //       console.log("Parser state:", parser.getState());
+  //     }
+  //   } catch (err) {
+  //     console.error("Stream processing error:", err);
+  //   }
+  // }
 
   async function llmResponse(prompts: any) {
-    // const response = await axios.post(`${BACKEND_URL}/chat`, {
-    //   messages: prompts,
-    // });
-
     const response = await fetch(`${BACKEND_URL}/chat`, {
       method: "POST",
       headers: {
@@ -71,64 +137,41 @@ const ResultsPage: React.FC = () => {
       throw new Error("Failed to get response stream");
     }
 
-    // console.log(response);
-
-    // Here we start prepping for the streaming response
+    let buffer = "";
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    const loopRunner = true;
 
-    while (loopRunner) {
-      // Here we start reading the stream, until its done.
+    while (true) {
       const { value, done } = await reader.read();
-      if (done) {
-        break;
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // ✅ Extract full <boltAction> blocks first
+      const blockRegex = /<boltAction\b[^>]*>([\s\S]*?)<\/boltAction>/g;
+      let match;
+
+      while ((match = blockRegex.exec(buffer)) !== null) {
+        const fullBlock = match[0];
+        handleBoltAction(fullBlock); // 🔁 Call your handler
+        buffer = buffer.slice(blockRegex.lastIndex);
+        blockRegex.lastIndex = 0; // reset because buffer changed
       }
-      const decodedChunk = decoder.decode(value, { stream: true });
-      console.log(decodedChunk);
-      //Send the data chunk by chunk .
-      const parsedLLMData = generateSteps(decodedChunk);
-      setAnswer((answer) => answer + decodedChunk); // update state with new chunk
 
-      // setSteps((prevSteps) => {
-      //   // Create a map of existing titles for O(1) lookups
-      //   const existingFilesTitles = new Map(
-      //     prevSteps.map((step) => [step.title, true])
-      //   );
-
-      //   // Process all new data in one pass
-      //   const updatedExistingSteps = prevSteps.map((step) => {
-      //     const matchingFile = parsedLLMData.find(
-      //       (data) => data.title === step.title
-      //     );
-      //     return matchingFile ? matchingFile : step;
-      //   });
-
-      //   //Find all the brand new files (not in the current steps) from the LLM respnose and store them in an
-      //   // array.
-      //   const brandNewData = parsedLLMData.filter(
-      //     (data) => !existingFilesTitles.has(data.title)
-      //   );
-
-      //   // Return updated array in a single state update
-      //   return [...updatedExistingSteps, ...brandNewData];
-      // });
+      // ✅ Optionally extract full <boltArtifact> too
+      // const artifactMatch = buffer.match(/<boltArtifact\b[^>]*>[\s\S]*?<\/boltArtifact>/);
+      // if (artifactMatch) {
+      //   const fullArtifact = artifactMatch[0];
+      //   handleBoltArtifact(fullArtifact); // ⛏ do something useful
+      //   buffer = buffer.replace(fullArtifact, ""); // clear from buffer
+      // }
     }
-    //console.log(parsedLLMData);
+  }
 
-    //Add the llm response also to the LLm messages, as we'll be needing this to ask follow up questions.
-    // setllmMessages((x) => {
-    //   return [
-    //     ...x,
-    //     {
-    //       role: "assistant",
-    //       content: response.data,
-    //     },
-    //   ];
-    // });
-
-    //Update the steps in such a way that, if LLM sends a file that already exists, then it replaces the current
-    //file with the file returned by the LLM.
+  function handleBoltAction(data: string) {
+    console.log("triggered");
+    console.log(data);
+    setCollectedBlocks((prev) => [...prev, data]);
   }
 
   async function getTemplate() {
@@ -343,7 +386,8 @@ const ResultsPage: React.FC = () => {
 
   return (
     <>
-      <div className="bg-blue-300">{JSON.stringify(answer)}</div>
+      <div className="bg-blue-300">{JSON.stringify(collectedBlocks)}</div>
+      {/* <div className="bg-blue-300">{JSON.stringify(answer)}</div> */}
       {/* <div className="bg-blue-200">{JSON.stringify(answer)}</div> */}
       <div className="h-[calc(100vh-64px)] overflow-hidden">
         <div

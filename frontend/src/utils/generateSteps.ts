@@ -9,46 +9,40 @@ interface Step {
   code?: string;
 }
 
-export function createStreamingStepsGenerator() {
-  let data = "";
+export function generateSteps(data: string): Step[] {
+  if (typeof data !== "string") {
+    console.warn("Expected a string but got:", typeof data);
+    return [];
+  }
 
-  return function generateSteps(chunk: string): Step[] {
-    data += chunk;
+  const steps: Step[] = [];
+  const artifactMatch = data.match(/<boltArtifact[^>]*title="([^"]+)"[^>]*>/);
+  const artifactTitle = artifactMatch ? artifactMatch[1] : "Project Files";
 
-    if (typeof data !== "string") {
-      console.warn("Expected a string but got:", typeof data);
-      return [];
+  const actionRegex =
+    /<boltAction\s+type="(file|dependency|command|shell)"(?:\s+filePath="([^"]+)")?>\s*([\s\S]*?)<\/boltAction>/g;
+
+  let match;
+
+  while ((match = actionRegex.exec(data)) !== null) {
+    let [_, type, filePath, content] = match;
+
+    // Normalize "shell" to "command"
+    if (type === "shell") {
+      type = "command";
     }
 
-    const steps: Step[] = [];
-    const artifactMatch = data.match(/<boltArtifact[^>]*title="([^"]+)"[^>]*>/);
-    const artifactTitle = artifactMatch ? artifactMatch[1] : "Project Files";
+    steps.push({
+      id: crypto.randomUUID(),
+      title: filePath?.trim() || `${type.toUpperCase()} Step`,
+      description: artifactTitle,
+      type: type as Step["type"],
+      icon: null,
+      completed: false,
+      expanded: false,
+      code: content.trim(),
+    });
+  }
 
-    const actionRegex =
-      /<boltAction\s+type="(file|dependency|command|shell)"(?:\s+filePath="([^"]+)")?>\s*([\s\S]*?)<\/boltAction>/g;
-
-    let match;
-
-    while ((match = actionRegex.exec(data)) !== null) {
-      let [_, type, filePath, content] = match;
-
-      // Normalize "shell" to "command"
-      if (type === "shell") {
-        type = "command";
-      }
-
-      steps.push({
-        id: crypto.randomUUID(),
-        title: filePath?.trim() || `${type.toUpperCase()} Step`,
-        description: artifactTitle,
-        type: type as Step["type"],
-        icon: null,
-        completed: false,
-        expanded: false,
-        code: content.trim(),
-      });
-    }
-
-    return steps;
-  };
+  return steps;
 }
