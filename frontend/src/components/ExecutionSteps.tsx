@@ -5,6 +5,8 @@ import {
   FileText,
   Package,
   Terminal,
+  Loader2,
+  Loader,
 } from "lucide-react";
 
 interface Step {
@@ -21,91 +23,9 @@ interface Step {
 interface MyProps {
   steps: Step[];
   currentStep: any;
-  toggleExpand: any;
-  intervalFunc: any;
 }
 
-const ExecutionSteps: React.FC<MyProps> = ({
-  steps,
-  currentStep,
-  toggleExpand,
-  intervalFunc,
-}) => {
-  //console.log(steps);
-  //const [steps, setSteps] = useState<Step[]>(stepsD);
-
-  // useEffect(() => {
-  //   // const generatedSteps: Step[] = [
-  //   //   {
-  //   //     id: 1,
-  //   //     title: "Creating project structure",
-  //   //     description: "Setting up the initial project files and directories",
-  //   //     type: "file",
-  //   //     icon: <FileText size={18} />,
-  //   //     completed: false,
-  //   //     code: "Created directories: src, public, components, pages, utils",
-  //   //   },
-  //   //   {
-  //   //     id: 2,
-  //   //     title: "Installing dependencies",
-  //   //     description: "Adding required packages to package.json",
-  //   //     type: "dependency",
-  //   //     icon: <Package size={18} />,
-  //   //     completed: false,
-  //   //     code: "Added: react, react-dom, react-router-dom, tailwindcss",
-  //   //   },
-  //   //   {
-  //   //     id: 3,
-  //   //     title: "Creating components",
-  //   //     description: "Building reusable UI components",
-  //   //     type: "file",
-  //   //     icon: <FileText size={18} />,
-  //   //     completed: false,
-  //   //     code: "Created: Navbar.tsx, Button.tsx, Card.tsx, Footer.tsx",
-  //   //   },
-  //   //   {
-  //   //     id: 4,
-  //   //     title: "Creating pages",
-  //   //     description: "Building page layouts and content",
-  //   //     type: "file",
-  //   //     icon: <FileText size={18} />,
-  //   //     completed: false,
-  //   //     code: "Created: HomePage.tsx, AboutPage.tsx, ContactPage.tsx",
-  //   //   },
-  //   //   {
-  //   //     id: 5,
-  //   //     title: "Setting up routing",
-  //   //     description: "Configuring navigation between pages",
-  //   //     type: "file",
-  //   //     icon: <FileText size={18} />,
-  //   //     completed: false,
-  //   //     code: "Set up React Router in App.tsx with routes for all pages",
-  //   //   },
-  //   //   {
-  //   //     id: 6,
-  //   //     title: "Building project",
-  //   //     description: "Compiling and optimizing for production",
-  //   //     type: "command",
-  //   //     icon: <Terminal size={18} />,
-  //   //     completed: false,
-  //   //     code: "Running build command to generate optimized assets",
-  //   //   },
-  //   // ];
-  //   //setSteps(stepss);
-
-  //   const interval = setInterval(intervalFunc, 800);
-
-  //   return () => clearInterval(interval);
-  // }, []);
-
-  // const toggleExpand = (stepId: number) => {
-  //   setSteps(
-  //     steps.map((step) =>
-  //       step.id === stepId ? { ...step, expanded: !step.expanded } : step
-  //     )
-  //   );
-  // };
-
+const ExecutionSteps: React.FC<MyProps> = ({ steps, currentStep }) => {
   return (
     <div className="p-4">
       <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
@@ -122,10 +42,7 @@ const ExecutionSteps: React.FC<MyProps> = ({
                 : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
             }`}
           >
-            <div
-              className="p-3 flex items-start gap-3 cursor-pointer"
-              onClick={() => toggleExpand(step.id)}
-            >
+            <div className="p-3 flex items-start gap-3 cursor-pointer">
               <div
                 className={`mt-0.5 flex-shrink-0 ${
                   step.completed
@@ -133,7 +50,8 @@ const ExecutionSteps: React.FC<MyProps> = ({
                     : "text-slate-400 dark:text-slate-500"
                 }`}
               >
-                {step.completed ? <CheckCircle size={18} /> : step?.icon}
+                step.completed ? <CheckCircle size={18} /> :{" "}
+                <Loader2 className="animate-spin text-green-50" size={18} />
               </div>
 
               <div className="flex-1 min-w-0">
@@ -145,7 +63,7 @@ const ExecutionSteps: React.FC<MyProps> = ({
                         : "text-slate-700 dark:text-slate-200"
                     }`}
                   >
-                    {step.title}
+                    Create {step.title}
                   </h3>
 
                   {index + 1 === currentStep && !step.completed && (
@@ -154,39 +72,8 @@ const ExecutionSteps: React.FC<MyProps> = ({
                     </span>
                   )}
                 </div>
-
-                <p
-                  className={`text-sm mt-0.5 ${
-                    step.completed
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-slate-500 dark:text-slate-400"
-                  }`}
-                >
-                  {step.description}
-                </p>
-              </div>
-
-              <div className="flex-shrink-0">
-                <ArrowRight
-                  size={16}
-                  className={`transform transition-transform ${
-                    step.expanded ? "rotate-90" : ""
-                  } ${
-                    step.completed
-                      ? "text-green-500 dark:text-green-400"
-                      : "text-slate-400 dark:text-slate-500"
-                  }`}
-                />
               </div>
             </div>
-
-            {step.expanded && step.code && (
-              <div className="px-3 pb-3 pt-0 ml-6 border-t border-slate-100 dark:border-slate-700">
-                <pre className="text-xs bg-slate-50 dark:bg-slate-900 p-2 rounded overflow-x-auto text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                  {step.code}
-                </pre>
-              </div>
-            )}
           </div>
         ))}
 
@@ -198,6 +85,7 @@ const ExecutionSteps: React.FC<MyProps> = ({
                 className="text-green-500 dark:text-green-400"
               />
               <span>All steps completed successfully!</span>
+              <Loader2 className="animate-spin text-green-50" size={42} />
             </div>
           </div>
         )}

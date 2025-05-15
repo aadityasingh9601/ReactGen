@@ -11,7 +11,6 @@ import { BACKEND_URL } from "../config";
 import { generateSteps } from "../utils/generateSteps";
 import { useWebContainer } from "../hooks/useWebContainer";
 import Preview from "../components/Preview";
-import StreamParser from "../utils/streaming";
 
 type Tab = "code" | "preview";
 
@@ -47,84 +46,25 @@ const ResultsPage: React.FC = () => {
   //accordingly and give you proper responses.
   //console.log(prompt);
 
-  const [panelSizes, setPanelSizes] = useState({ left: 35, right: 65 });
+  const [panelSizes, setPanelSizes] = useState({ left: 25, right: 75 });
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("code");
   const [steps, setSteps] = useState<Step[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [collectedBlocks, setCollectedBlocks] = useState<string[]>([]);
+  const [llmResponse, setllmResponse] = useState<String>();
+  // const [collectedBlocks, setCollectedBlocks] = useState<string[]>([]);
+  const [currentFilePath, setCurrentFilePath] = useState<any>();
 
-  // async function llmResponse(prompts: any) {
-  //   // Create the parser as a local variable
-  //   const parser = new StreamParser();
+  useEffect(() => {
+    if (!currentFilePath) return;
 
-  //   const response = await fetch(`${BACKEND_URL}/chat`, {
-  //     method: "POST",
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //     },
-  //     body: JSON.stringify({ messages: prompts }),
-  //   });
+    const file = files.find((f) => f.path === currentFilePath);
+    if (file) {
+      handleFileSelect(file);
+    }
+  }, [files, currentFilePath]);
 
-  //   if (!response.ok || !response.body) {
-  //     throw new Error("Failed to get response stream");
-  //   }
-
-  //   const reader = response.body.getReader();
-  //   const decoder = new TextDecoder();
-
-  //   try {
-  //     // Store all found tags in this local array for debugging
-  //     const allFoundTags: string[] = [];
-
-  //     console.log("Starting stream processing...");
-
-  //     while (true) {
-  //       const { value, done } = await reader.read();
-  //       if (done) {
-  //         console.log("Stream complete");
-  //         break;
-  //       }
-
-  //       const chunk = decoder.decode(value, { stream: true });
-
-  //       // Log chunk for debugging (first 50 chars)
-  //       console.log(
-  //         `Received chunk (${chunk.length} chars): ${chunk.slice(0, 50)}`
-  //       );
-
-  //       // Process the chunk
-  //       const extractedTags = parser.processChunk(chunk);
-
-  //       if (extractedTags.length > 0) {
-  //         console.log(
-  //           `Found ${extractedTags.length} complete tags in this chunk`
-  //         );
-
-  //         // Add to our debug array
-  //         allFoundTags.push(...extractedTags);
-  //         console.log(allFoundTags);
-
-  //         // Update React state with the new tags
-  //         setCollectedBlocks((prev) => [...prev, ...extractedTags]);
-  //       }
-  //     }
-
-  //     console.log(`Total tags found: ${allFoundTags.length}`);
-
-  //     // Debug: check if any tags were found
-  //     if (allFoundTags.length === 0) {
-  //       console.warn("No tags were found in the entire stream!");
-  //       // Debug output the first 100 chars received to check format
-  //       console.log("Parser state:", parser.getState());
-  //     }
-  //   } catch (err) {
-  //     console.error("Stream processing error:", err);
-  //   }
-  // }
-
-  async function llmResponse(prompts: any) {
+  async function getLLMResponse(prompts: any) {
     const response = await fetch(`${BACKEND_URL}/chat`, {
       method: "POST",
       headers: {
@@ -138,40 +78,156 @@ const ResultsPage: React.FC = () => {
     }
 
     let buffer = "";
+    let buffer2 = "";
     const reader = response.body.getReader();
+    let currentFilePath: string = "";
     const decoder = new TextDecoder();
+    let insideBoltAction = false;
+    let codeAccumulator = "";
 
     while (true) {
-      const { value, done } = await reader.read();
+      const { done, value } = await reader.read();
       if (done) break;
 
+      buffer2 += decoder.decode(value, { stream: true });
       buffer += decoder.decode(value, { stream: true });
 
-      // ✅ Extract full <boltAction> blocks first
-      const blockRegex = /<boltAction\b[^>]*>([\s\S]*?)<\/boltAction>/g;
-      let match;
+      // 1. Process <boltAction> start tags
+      const startTagRegex = /<boltAction\s+type="file"\s+filePath="([^"]+)">/;
+      const startTagMatch = buffer.match(startTagRegex);
 
-      while ((match = blockRegex.exec(buffer)) !== null) {
-        const fullBlock = match[0];
-        handleBoltAction(fullBlock); // 🔁 Call your handler
-        buffer = buffer.slice(blockRegex.lastIndex);
-        blockRegex.lastIndex = 0; // reset because buffer changed
+      if (startTagMatch && !insideBoltAction) {
+        insideBoltAction = true;
+        currentFilePath = startTagMatch[1];
+        codeAccumulator = ""; // Reset code accumulator for new file
+
+        setSteps((prevSteps) => {
+          const newStep: Step = {
+            id: crypto.randomUUID(),
+            title: currentFilePath,
+            description: "Streaming file",
+            type: "file",
+            icon: null,
+            completed: false,
+            expanded: false,
+            code: "",
+          };
+
+          const stepExists = prevSteps.some(
+            (step) => step.title === currentFilePath
+          );
+
+          if (stepExists) {
+            return prevSteps.map((step) =>
+              step.title === currentFilePath ? newStep : step
+            );
+          }
+
+          return [...prevSteps, newStep];
+        });
+
+        setCurrentFilePath(currentFilePath);
+
+        // Remove the start tag from buffer
+        buffer = buffer.slice(startTagMatch.index! + startTagMatch[0].length);
       }
 
-      // ✅ Optionally extract full <boltArtifact> too
-      // const artifactMatch = buffer.match(/<boltArtifact\b[^>]*>[\s\S]*?<\/boltArtifact>/);
-      // if (artifactMatch) {
-      //   const fullArtifact = artifactMatch[0];
-      //   handleBoltArtifact(fullArtifact); // ⛏ do something useful
-      //   buffer = buffer.replace(fullArtifact, ""); // clear from buffer
-      // }
+      // 2. Process </boltAction> end tags
+      const endTagMatch = buffer.match(/([\s\S]*?)<\/boltAction>/);
+
+      if (insideBoltAction && endTagMatch && currentFilePath) {
+        const codeChunk = endTagMatch[1];
+
+        // Add the final chunk to our accumulator
+        codeAccumulator += codeChunk;
+
+        // Clean any remaining tag content that might be in the code
+        const cleanedCode = cleanBoltActionTags(codeAccumulator);
+
+        // Update the step with the complete code
+        setSteps((prevSteps) =>
+          prevSteps.map((step) =>
+            step.title === currentFilePath
+              ? {
+                  ...step,
+                  code: cleanedCode, // Use cleaned code
+                  completed: true,
+                }
+              : step
+          )
+        );
+
+        // Clean up state and buffer
+        buffer = buffer.slice(endTagMatch.index! + endTagMatch[0].length);
+        insideBoltAction = false;
+        currentFilePath = "";
+        codeAccumulator = "";
+        continue;
+      }
+
+      // 3. Accumulate code chunks while inside <boltAction>
+      if (insideBoltAction && currentFilePath) {
+        // Look for potential closing tag fragments
+        const closingTagIndex = buffer.indexOf("</boltAction");
+
+        if (closingTagIndex >= 0) {
+          // If we find part of a closing tag, only take content before it
+          const safeContent = buffer.slice(0, closingTagIndex);
+          codeAccumulator += safeContent;
+          buffer = buffer.slice(closingTagIndex); // Keep potential tag for next iteration
+        } else {
+          // No closing tag fragment, safe to accumulate all buffer
+          codeAccumulator += buffer;
+          buffer = "";
+        }
+
+        // Clean any bolt action tags that might appear in the accumulated content
+        const cleanedAccumulator = cleanBoltActionTags(codeAccumulator);
+
+        // Update the step with accumulated code so far
+        setSteps((prevSteps) =>
+          prevSteps.map((step) =>
+            step.title === currentFilePath
+              ? {
+                  ...step,
+                  code: cleanedAccumulator,
+                }
+              : step
+          )
+        );
+      }
     }
+
+    setllmMessages((x) => {
+      return [
+        ...x,
+        {
+          role: "assistant",
+          content: buffer2,
+        },
+      ];
+    });
   }
 
-  function handleBoltAction(data: string) {
-    console.log("triggered");
-    console.log(data);
-    setCollectedBlocks((prev) => [...prev, data]);
+  // Enhanced helper function to clean all unwanted markers from code
+  function cleanBoltActionTags(code: string): string {
+    return (
+      code
+        // Remove boltAction tags
+        .replace(/<\/?boltAction[^>]*>/g, "")
+        .replace(/<boltAction.*?>/g, "")
+        .replace(/<\/boltAction>/g, "")
+
+        // Remove markdown code block start markers with language (like ```tsx)
+        .replace(/^```[a-zA-Z0-9]*\s*/m, "")
+
+        // Remove markdown code block end markers
+        .replace(/```\s*$/m, "")
+
+        // Handle cases where they might be in middle of content
+        .replace(/```[a-zA-Z0-9]*\s*/g, "")
+        .replace(/```/g, "")
+    );
   }
 
   async function getTemplate() {
@@ -211,25 +267,10 @@ const ResultsPage: React.FC = () => {
     );
 
     //console.log(parsedData);
-    llmResponse(LLMprompts);
+    getLLMResponse(LLMprompts);
 
     //Also, update the files state variable only after steps in being updated properly.
   }
-
-  const intervalFunc = () => {
-    // setCurrentStep((prev) => {
-    //   if (prev < steps?.length) {
-    //     setSteps((steps) =>
-    //       steps.map((step) =>
-    //         step.id === prev + 1 ? { ...step, completed: true } : step
-    //       )
-    //     );
-    //     return prev + 1;
-    //   }
-    //   return prev;
-    // });
-    console.log("I am interval function.");
-  };
 
   useEffect(() => {
     //First of all get the template from the backend according to the user's prompt.
@@ -239,6 +280,7 @@ const ResultsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    //console.log("triggered Set files");
     const generatedFiles = steps
       ?.filter((step) => step.type === "file")
       .map((step) => ({
@@ -251,9 +293,10 @@ const ResultsPage: React.FC = () => {
 
     setFiles(generatedFiles);
 
-    if (generatedFiles.length > 0) {
-      setSelectedFile(generatedFiles[0]);
-    }
+    //It's causing conflictin while streaming and selecting the correct file, so comment this out.
+    // if (generatedFiles.length > 0) {
+    //   setSelectedFile(generatedFiles[0]);
+    // }
   }, [steps]);
 
   interface WebContainerFile {
@@ -329,6 +372,7 @@ const ResultsPage: React.FC = () => {
 
   const handleFileSelect = (file: FileData) => {
     setSelectedFile(file);
+    //console.log(file);
     setActiveTab("code");
   };
 
@@ -386,8 +430,8 @@ const ResultsPage: React.FC = () => {
 
   return (
     <>
-      <div className="bg-blue-300">{JSON.stringify(collectedBlocks)}</div>
-      {/* <div className="bg-blue-300">{JSON.stringify(answer)}</div> */}
+      {/* <div className="bg-blue-300">{JSON.stringify(collectedBlocks)}</div> */}
+
       {/* <div className="bg-blue-200">{JSON.stringify(answer)}</div> */}
       <div className="h-[calc(100vh-64px)] overflow-hidden">
         <div
@@ -409,12 +453,7 @@ const ResultsPage: React.FC = () => {
               </p>
             </div>
 
-            <ExecutionSteps
-              steps={steps}
-              currentStep={currentStep}
-              toggleExpand={toggleExpand}
-              intervalFunc={intervalFunc}
-            />
+            <ExecutionSteps steps={steps} currentStep={currentStep} />
             <div className="flex px-4 rounded-md">
               <textarea
                 placeholder="Follow up prompts"
@@ -437,7 +476,7 @@ const ResultsPage: React.FC = () => {
                   };
 
                   //Send the old message plus the new message also.
-                  llmResponse([...llmMessages, newMessage]);
+                  getLLMResponse([...llmMessages, newMessage]);
 
                   //Update the llmMessages for further requests.
                   setllmMessages((prevM) => {
@@ -465,7 +504,7 @@ const ResultsPage: React.FC = () => {
           >
             <div className="h-full flex">
               {/* File Explorer sidebar */}
-              <div className="w-72 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
+              <div className="w-64 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700">
                   <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
                     File Explorer

@@ -40,7 +40,10 @@ export function generateSteps(data: string): Step[] {
       icon: null,
       completed: false,
       expanded: false,
-      code: content.trim(),
+      code: content
+        .trim()
+        .replace(/^```[a-z]*\n?/, "") // remove starting ```tsx or ```js
+        .replace(/\n?```$/, ""), // remove ending ```,
     });
   }
 
