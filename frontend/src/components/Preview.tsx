@@ -45,12 +45,7 @@ export default function Preview({ webContainer }: MyProps) {
   return (
     <div style={{ height: "100%", width: "100%" }}>
       {url === "" && (
-        <div
-          style={{
-            backgroundColor: "white",
-            margin: "0",
-          }}
-        >
+        <div className="bg-white h-full">
           Preview is being generated based on the code
         </div>
       )}

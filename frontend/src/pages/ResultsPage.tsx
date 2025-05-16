@@ -11,6 +11,8 @@ import { BACKEND_URL } from "../config";
 import { generateSteps } from "../utils/generateSteps";
 import { useWebContainer } from "../hooks/useWebContainer";
 import Preview from "../components/Preview";
+import { Download } from "lucide-react";
+import JSZip from "jszip";
 
 type Tab = "code" | "preview";
 
@@ -28,6 +30,9 @@ interface Step {
 const ResultsPage: React.FC = () => {
   console.log("rendered");
   const webContainer = useWebContainer();
+  //Create instance to download files in zip format.
+  const zip = new JSZip();
+
   const location = useLocation();
   // console.log(location);
   const [files, setFiles] = useState<FileData[]>([]);
@@ -63,6 +68,23 @@ const ResultsPage: React.FC = () => {
       handleFileSelect(file);
     }
   }, [files, currentFilePath]);
+
+  async function downloadFiles() {
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      zip.file(file.path, file.content || "");
+    });
+
+    const blob = await zip.generateAsync({ type: "blob" });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "project-files.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function getLLMResponse(prompts: any) {
     const response = await fetch(`${BACKEND_URL}/chat`, {
@@ -198,6 +220,15 @@ const ResultsPage: React.FC = () => {
       }
     }
 
+    setllmResponse(buffer2);
+
+    //Marked all as completed once finished.
+    setSteps((prevSteps) =>
+      prevSteps.map((step) => {
+        return { ...step, completed: true };
+      })
+    );
+
     setllmMessages((x) => {
       return [
         ...x,
@@ -209,25 +240,26 @@ const ResultsPage: React.FC = () => {
     });
   }
 
-  // Enhanced helper function to clean all unwanted markers from code
   function cleanBoltActionTags(code: string): string {
-    return (
-      code
-        // Remove boltAction tags
-        .replace(/<\/?boltAction[^>]*>/g, "")
-        .replace(/<boltAction.*?>/g, "")
-        .replace(/<\/boltAction>/g, "")
+    // First pass: remove markdown fences
+    let cleaned = code
+      // Remove markdown code block start markers with any language
+      .replace(/^```[\w\d]*\s*\n/gm, "")
+      // Remove markdown code block end markers
+      .replace(/\n```\s*$/gm, "")
+      // Clean any other markdown fences that might be in the middle
+      .replace(/```[\w\d]*\s*\n/g, "")
+      .replace(/\n```/g, "");
 
-        // Remove markdown code block start markers with language (like ```tsx)
-        .replace(/^```[a-zA-Z0-9]*\s*/m, "")
+    // Second pass: remove any boltAction tags
+    cleaned = cleaned
+      .replace(/<boltAction\s+[^>]*>/g, "") // Opening tags with attributes
+      .replace(/<\/boltAction>/g, "") // Closing tags
+      .replace(/<\/boltArtifact>/g, "") // Closing tags
+      .replace(/<boltAction>/g, "") // Simple opening tags
+      .replace(/npm run dev/g, ""); // Remove any "npm run dev" leftovers seen in screenshot
 
-        // Remove markdown code block end markers
-        .replace(/```\s*$/m, "")
-
-        // Handle cases where they might be in middle of content
-        .replace(/```[a-zA-Z0-9]*\s*/g, "")
-        .replace(/```/g, "")
-    );
+    return cleaned;
   }
 
   async function getTemplate() {
@@ -256,6 +288,7 @@ const ResultsPage: React.FC = () => {
 
     //Update the llmMessages for further respones.
     setllmMessages(LLMprompts);
+    console.log(llmMessages);
 
     //Update the steps state variable.
 
@@ -430,7 +463,7 @@ const ResultsPage: React.FC = () => {
 
   return (
     <>
-      {/* <div className="bg-blue-300">{JSON.stringify(collectedBlocks)}</div> */}
+      {/* <div className="bg-blue-300">{JSON.stringify(llmResponse)}</div> */}
 
       {/* <div className="bg-blue-200">{JSON.stringify(answer)}</div> */}
       <div className="h-[calc(100vh-64px)] overflow-hidden">
@@ -441,7 +474,7 @@ const ResultsPage: React.FC = () => {
         >
           {/* Left panel: Execution Steps & Files Overview */}
           <div
-            className="bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto"
+            className="relative bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 "
             style={{ width: `${panelSizes.left}%` }}
           >
             <div className="p-4 border-b border-slate-200 dark:border-slate-700">
@@ -454,38 +487,39 @@ const ResultsPage: React.FC = () => {
             </div>
 
             <ExecutionSteps steps={steps} currentStep={currentStep} />
-            <div className="flex px-4 rounded-md">
+
+            <div className="flex px-4 rounded-md w-full  absolute bottom-0">
               <textarea
-                placeholder="Follow up prompts"
+                placeholder="Follow up prompts..."
                 value={followUpPrompt}
                 onChange={(e) => {
                   setfollowUpPrompt(e.target.value);
                 }}
-                className="w-full"
-              ></textarea>
-              <button
-                className=" bg-blue-200 px-2"
-                onClick={() => {
-                  //Add further logic here to ask follow up questions.
-                  //The new message that gets created here, also need to be added to the llm messages, so that
-                  //we can just send request to the LLM with that and it responds properly to our follow up
-                  //prompts and changes.
-                  const newMessage = {
-                    role: "user",
-                    content: followUpPrompt,
-                  };
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    //Add further logic here to ask follow up questions.
+                    //The new message that gets created here, also need to be added to the llm messages, so that
+                    //we can just send request to the LLM with that and it responds properly to our follow up
+                    //prompts and changes.
+                    const newMessage = {
+                      role: "user",
+                      content: followUpPrompt,
+                    };
 
-                  //Send the old message plus the new message also.
-                  getLLMResponse([...llmMessages, newMessage]);
+                    setfollowUpPrompt("");
 
-                  //Update the llmMessages for further requests.
-                  setllmMessages((prevM) => {
-                    return [...prevM, newMessage];
-                  });
+                    //Send the old message plus the new message also.
+                    getLLMResponse([...llmMessages, newMessage]);
+
+                    //Update the llmMessages for further requests.
+                    setllmMessages((prevM) => {
+                      return [...prevM, newMessage];
+                    });
+                    console.log(llmMessages);
+                  }
                 }}
-              >
-                Send
-              </button>
+                className="w-full rounded-md h-20 bg-slate-900 border-grey-100 p-2 text-white"
+              ></textarea>
             </div>
           </div>
 
@@ -520,7 +554,7 @@ const ResultsPage: React.FC = () => {
               {/* Code/Preview viewer */}
               <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Tabs */}
-                <div className="flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                <div className="flex relative border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                   <button
                     onClick={() => setActiveTab("code")}
                     className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
@@ -542,6 +576,15 @@ const ResultsPage: React.FC = () => {
                   >
                     <Globe size={16} />
                     Preview
+                  </button>
+                  {/* Add a download button to download the existing files in the file Explorer, so that we can use
+                  them as much as we like. */}
+                  <button
+                    onClick={() => downloadFiles()}
+                    className="absolute flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 right-0 hover:text-slate-200"
+                  >
+                    <Download size={18} />
+                    Download files
                   </button>
                 </div>
 
