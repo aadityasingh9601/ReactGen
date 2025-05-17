@@ -13,6 +13,10 @@ import { useWebContainer } from "../hooks/useWebContainer";
 import Preview from "../components/Preview";
 import { Download } from "lucide-react";
 import JSZip from "jszip";
+import TerminalComponent from "../components/TerminalComponent";
+import { Rnd } from "react-rnd";
+
+// Important for resize handles
 
 type Tab = "code" | "preview";
 
@@ -57,6 +61,7 @@ const ResultsPage: React.FC = () => {
   const [steps, setSteps] = useState<Step[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [llmResponse, setllmResponse] = useState<String>();
+  const [url, setUrl] = useState("");
   // const [collectedBlocks, setCollectedBlocks] = useState<string[]>([]);
   const [currentFilePath, setCurrentFilePath] = useState<any>();
 
@@ -241,25 +246,24 @@ const ResultsPage: React.FC = () => {
   }
 
   function cleanBoltActionTags(code: string): string {
-    // First pass: remove markdown fences
-    let cleaned = code
-      // Remove markdown code block start markers with any language
-      .replace(/^```[\w\d]*\s*\n/gm, "")
-      // Remove markdown code block end markers
-      .replace(/\n```\s*$/gm, "")
-      // Clean any other markdown fences that might be in the middle
-      .replace(/```[\w\d]*\s*\n/g, "")
-      .replace(/\n```/g, "");
+    return code
+      .replace(/^```[\w\d]*\s*\n?/gm, "") // Markdown start fences
+      .replace(/\n?```\s*$/gm, "") // Markdown end fences
+      .replace(/```[\w\d]*\s*\n?/g, "") // Fences in middle
+      .replace(/\n?```/g, "")
+      .replace(/<boltAction\s+[^>]*>/g, "") // <boltAction ...>
+      .replace(/<\/boltAction>/g, "")
+      .replace(/<boltAction>/g, "")
+      .replace(/<\/boltAction>/g, "")
+      .replace(/<boltArtifact>/g, "")
+      .replace(/<boltArtifact>/g, "")
+      .replace(/\b(npm\s+run\s+dev)\b/g, ""); // Unwanted leftover commands
+  }
 
-    // Second pass: remove any boltAction tags
-    cleaned = cleaned
-      .replace(/<boltAction\s+[^>]*>/g, "") // Opening tags with attributes
-      .replace(/<\/boltAction>/g, "") // Closing tags
-      .replace(/<\/boltArtifact>/g, "") // Closing tags
-      .replace(/<boltAction>/g, "") // Simple opening tags
-      .replace(/npm run dev/g, ""); // Remove any "npm run dev" leftovers seen in screenshot
-
-    return cleaned;
+  function setPreviewUrl(url: string) {
+    setUrl(url);
+    //Navigate to the preveiw tab as soon as our website is ready.
+    setActiveTab("preview");
   }
 
   async function getTemplate() {
@@ -453,14 +457,6 @@ const ResultsPage: React.FC = () => {
     }
   };
 
-  const toggleExpand = (stepId: string) => {
-    setSteps(
-      steps.map((step) =>
-        step.id === stepId ? { ...step, expanded: !step.expanded } : step
-      )
-    );
-  };
-
   return (
     <>
       {/* <div className="bg-blue-300">{JSON.stringify(llmResponse)}</div> */}
@@ -469,7 +465,7 @@ const ResultsPage: React.FC = () => {
       <div className="h-[calc(100vh-64px)] overflow-hidden">
         <div
           id="results-container"
-          className="flex h-full"
+          className="flex h-full relative"
           style={{ cursor: isDragging ? "col-resize" : "auto" }}
         >
           {/* Left panel: Execution Steps & Files Overview */}
@@ -518,7 +514,7 @@ const ResultsPage: React.FC = () => {
                     console.log(llmMessages);
                   }
                 }}
-                className="w-full rounded-md h-20 bg-slate-900 border-grey-100 p-2 text-white"
+                className="w-full rounded-md h-20 bg-slate-900 border-grey-100 p-2 text-white resize-none"
               ></textarea>
             </div>
           </div>
@@ -602,12 +598,17 @@ const ResultsPage: React.FC = () => {
                       </div>
                     )
                   ) : (
-                    <Preview webContainer={webContainer} />
+                    <Preview url={url} />
                   )}
                 </div>
               </div>
             </div>
           </div>
+
+          <TerminalComponent
+            setPreviewUrl={setPreviewUrl}
+            webContainer={webContainer}
+          />
         </div>
       </div>
     </>
