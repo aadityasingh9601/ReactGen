@@ -1,33 +1,27 @@
-import React from 'react';
-import { FileData } from '../types';
-import Editor from '@monaco-editor/react';
-import { useTheme } from '../context/ThemeContext';
+import Editor from "@monaco-editor/react";
+import { useTheme } from "../context/ThemeContext";
+import { CodeViewerProps } from "../types";
 
-interface CodeViewerProps {
-  file: FileData;
-  onContentChange?: (content: string) => void;
-}
-
-const CodeViewer: React.FC<CodeViewerProps> = ({ file, onContentChange }) => {
+export default function CodeViewer({ file, onContentChange }: CodeViewerProps) {
   const { theme } = useTheme();
-  
+
   const getLanguage = (filename: string): string => {
-    const ext = filename.split('.').pop() || '';
-    
+    const ext = filename.split(".").pop() || "";
+
     const languageMap: Record<string, string> = {
-      'js': 'javascript',
-      'jsx': 'javascript',
-      'ts': 'typescript',
-      'tsx': 'typescript',
-      'css': 'css',
-      'html': 'html',
-      'json': 'json',
-      'md': 'markdown',
-      'yml': 'yaml',
-      'yaml': 'yaml',
+      js: "javascript",
+      jsx: "javascript",
+      ts: "typescript",
+      tsx: "typescript",
+      css: "css",
+      html: "html",
+      json: "json",
+      md: "markdown",
+      yml: "yaml",
+      yaml: "yaml",
     };
-    
-    return languageMap[ext.toLowerCase()] || 'plaintext';
+
+    return languageMap[ext.toLowerCase()] || "plaintext";
   };
 
   const handleEditorChange = (value: string | undefined) => {
@@ -35,8 +29,8 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ file, onContentChange }) => {
       onContentChange(value);
     }
   };
-  
-  const filename = file.path.split('/').pop() || '';
+
+  const filename = file.path.split("/").pop() || "";
   const language = getLanguage(filename);
 
   return (
@@ -49,19 +43,17 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ file, onContentChange }) => {
           height="100%"
           defaultLanguage={language}
           value={file.content}
-          theme={theme === 'dark' ? 'vs-dark' : 'light'}
+          theme={theme === "dark" ? "vs-dark" : "light"}
           onChange={handleEditorChange}
           options={{
             fontSize: 14,
             minimap: { enabled: true },
             scrollBeyondLastLine: false,
-            wordWrap: 'on',
+            wordWrap: "on",
             automaticLayout: true,
           }}
         />
       </div>
     </div>
   );
-};
-
-export default CodeViewer
+}

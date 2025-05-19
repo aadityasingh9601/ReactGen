@@ -1,31 +1,10 @@
-import React, { useState, useEffect } from "react";
-import {
-  CheckCircle,
-  ArrowRight,
-  FileText,
-  Package,
-  Terminal,
-  Loader2,
-  Loader,
-} from "lucide-react";
+import { ExecutionStepsProps } from "../types";
+import { CheckCircle, Loader2 } from "lucide-react";
 
-interface Step {
-  id: string;
-  title: string;
-  description: string;
-  type: "file" | "dependency" | "command";
-  icon: React.ReactNode;
-  completed: boolean;
-  expanded?: boolean;
-  code?: string;
-}
-
-interface MyProps {
-  steps: Step[];
-  currentStep: any;
-}
-
-const ExecutionSteps: React.FC<MyProps> = ({ steps, currentStep }) => {
+export default function ExecutionSteps({
+  steps,
+  currentStep,
+}: ExecutionStepsProps) {
   return (
     <div className="p-4 overflow-y-auto h-[70vh] hide-scrollbar">
       <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
@@ -88,6 +67,4 @@ const ExecutionSteps: React.FC<MyProps> = ({ steps, currentStep }) => {
       )}
     </div>
   );
-};
-
-export default ExecutionSteps;
+}

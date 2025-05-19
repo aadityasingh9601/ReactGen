@@ -6,12 +6,15 @@ import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import { Rnd } from "react-rnd";
 
-interface MyProps {
+interface TerminalComponentProps {
   webContainer?: WebContainer;
   setPreviewUrl: any;
 }
 
-const TerminalComponent = ({ webContainer, setPreviewUrl }: MyProps) => {
+export default function TerminalComponent({
+  webContainer,
+  setPreviewUrl,
+}: TerminalComponentProps) {
   const terminalRef = useRef(null);
   const terminal = useRef(null);
   const [installOutput, setInstallOutput] = useState(""); // State to hold npm install output
@@ -23,8 +26,9 @@ const TerminalComponent = ({ webContainer, setPreviewUrl }: MyProps) => {
         convertEol: true,
         fontSize: 14,
         cursorBlink: true,
+
         theme: {
-          background: "#1e1e1e",
+          background: "black",
         },
       });
 
@@ -37,21 +41,86 @@ const TerminalComponent = ({ webContainer, setPreviewUrl }: MyProps) => {
     setupTerminal();
   }, []);
 
+  // useEffect(() => {
+  //   const main = async () => {
+  //     if (!webContainer) return;
+  //     //Install the dependencies.
+  //     const installProcess = await webContainer?.spawn("npm", ["install"]);
+  //     let currentOutput = "";
+  //     installProcess?.output.pipeTo(
+  //       new WritableStream({
+  //         write(data) {
+  //           terminal.current.write(data);
+  //           currentOutput += data;
+  //           setInstallOutput(currentOutput); // Update state with output
+  //         },
+  //       })
+  //     );
+
+  //     const installExitCode = await installProcess?.exit;
+
+  //     if (installExitCode !== 0) {
+  //       throw new Error("Unable to run npm install");
+  //     }
+
+  //     // `npm run dev`
+  //     const shell = await webContainer?.spawn("jsh");
+
+  //     // Pipe output to terminal
+  //     shell.output.pipeTo(
+  //       new WritableStream({
+  //         write(data) {
+  //           terminal.current.write(data);
+  //         },
+  //       })
+  //     );
+
+  //     // Pipe terminal input to shell
+  //     const input = shell.input.getWriter();
+
+  //     terminal.current.onData((data: string) => {
+  //       input.write(data);
+  //     });
+
+  //     // On process exit
+  //     shell.exit.then(() => {
+  //       terminal.current.write("\r\n\x1b[31mShell exited\x1b[0m\r\n");
+  //     });
+
+  //     webContainer?.on("server-ready", (port, url) => {
+  //       console.log(port);
+  //       console.log(url);
+
+  //       setPreviewUrl(url);
+  //     });
+  //   };
+
+  //   main();
+  // }, [webContainer]);
+
+  async function interactiveTerminal() {
+    const shell = webContainer?.spawn("jsh");
+    //Every webContainer process has a output property.
+
+    shell?.output.pipeTo(
+      new WritableStream({
+        write(data) {
+          terminal.current.write(data);
+        },
+      })
+    );
+
+    // Pipe terminal input to shell
+    const input = shell?.input.getWriter();
+
+    terminal.current.onData((data: string) => {
+      input.write(data);
+    });
+  }
+
   useEffect(() => {
     const main = async () => {
-      if (!webContainer) return;
-      //Install the dependencies.
       const installProcess = await webContainer?.spawn("npm", ["install"]);
-      let currentOutput = "";
-      installProcess?.output.pipeTo(
-        new WritableStream({
-          write(data) {
-            terminal.current.write(data);
-            currentOutput += data;
-            setInstallOutput(currentOutput); // Update state with output
-          },
-        })
-      );
 
       const installExitCode = await installProcess?.exit;
 
@@ -59,36 +128,25 @@ const TerminalComponent = ({ webContainer, setPreviewUrl }: MyProps) => {
         throw new Error("Unable to run npm install");
       }
 
-      // `npm run dev`
-      const shell = await webContainer?.spawn("npm", ["run", "dev"]);
+      let currentOutput = "";
 
-      // Pipe output to terminal
-      shell.output.pipeTo(
+      //Pipe(Print or send) the responses to terminal.
+      installProcess?.output.pipeTo(
         new WritableStream({
           write(data) {
             terminal.current.write(data);
+            currentOutput += data;
+            setInstallOutput(currentOutput);
           },
         })
       );
 
-      // Pipe terminal input to shell
-      const input = shell.input.getWriter();
-      terminal.current.onData((data: string) => {
-        input.write(data);
-      });
-
-      // On process exit
-      shell.exit.then(() => {
-        terminal.current.write("\r\n\x1b[31mShell exited\x1b[0m\r\n");
-      });
-
       webContainer?.on("server-ready", (port, url) => {
-        console.log(port);
-        console.log(url);
-
         setPreviewUrl(url);
       });
     };
+
+    //interactiveTerminal();
 
     main();
   }, [webContainer]);
@@ -104,7 +162,7 @@ const TerminalComponent = ({ webContainer, setPreviewUrl }: MyProps) => {
       minHeight={100}
       bounds="parent"
       enableResizing={{ top: true }}
-      disableDragging
+      disableDragging={true}
       style={{
         position: "absolute",
         bottom: 0,
@@ -125,10 +183,9 @@ const TerminalComponent = ({ webContainer, setPreviewUrl }: MyProps) => {
           width: "100%",
           overflow: "hidden",
           backgroundColor: "black",
+          height: "fit-content",
         }}
       />
     </Rnd>
   );
-};
-
-export default TerminalComponent;
+}

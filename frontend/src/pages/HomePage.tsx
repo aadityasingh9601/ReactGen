@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Code, Zap, BookOpen } from "lucide-react";
 
-const HomePage: React.FC = () => {
+export default function HomePage() {
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -107,6 +107,4 @@ const HomePage: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default HomePage;
+}

@@ -1,11 +1,7 @@
 import { WebContainer } from "@webcontainer/api";
 import { useEffect, useState } from "react";
 
-interface MyProps {
-  url: string;
-}
-
-export default function Preview({ url }: MyProps) {
+export default function Preview({ url }: { url: string }) {
   return (
     <div style={{ height: "100%", width: "100%" }}>
       {url === "" && (

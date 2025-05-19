@@ -1,52 +1,12 @@
-import React from "react";
 import { File, Folder } from "lucide-react";
-import { FileData } from "../types";
+import { FileExplorerProps, FolderStructure } from "../types";
+import { createFolderStructure } from "../utils";
 
-interface FileExplorerProps {
-  files: FileData[];
-  selectedFile: FileData | null;
-  onSelectFile: (file: FileData) => void;
-}
-
-interface FolderStructure {
-  [key: string]: FolderStructure | FileData[];
-}
-
-const FileExplorer: React.FC<FileExplorerProps> = ({
+export default function FileExplorer({
   files,
   selectedFile,
   onSelectFile,
-}) => {
-  const createFolderStructure = (files: FileData[]): FolderStructure => {
-    const structure: FolderStructure = {};
-    //console.log(files);
-
-    files.forEach((file) => {
-      const parts = file.path.split("/");
-
-      if (parts[0] === "") {
-        parts.shift();
-      }
-
-      let current = structure;
-      for (let i = 0; i < parts.length - 1; i++) {
-        const part = parts[i];
-        if (!current[part]) {
-          current[part] = {};
-        }
-        current = current[part] as FolderStructure;
-      }
-
-      const fileName = parts[parts.length - 1];
-      if (!current[fileName]) {
-        current[fileName] = [];
-      }
-      (current[fileName] as FileData[]).push(file);
-    });
-
-    return structure;
-  };
-
+}: FileExplorerProps) {
   const folderStructure = createFolderStructure(files);
   // console.log(folderStructure);
 
@@ -111,6 +71,4 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   return (
     <div className="text-sm">{renderFolderStructure(folderStructure)}</div>
   );
-};
-
-export default FileExplorer;
+}
