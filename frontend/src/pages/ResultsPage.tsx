@@ -21,6 +21,10 @@ import { Step } from "../types";
 // Important for resize handles
 
 type Tab = "code" | "preview";
+interface LLMmessage {
+  role: string;
+  content: string;
+}
 
 export default function ResultsPage() {
   //console.log("rendered");
@@ -33,9 +37,7 @@ export default function ResultsPage() {
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
   const [prompt, setPrompt] = useState(location.state);
   const [followUpPrompt, setfollowUpPrompt] = useState("");
-  const [llmMessages, setllmMessages] = useState<
-    { role: string; content: any }[]
-  >([]);
+  const [llmMessages, setllmMessages] = useState<LLMmessage[]>([]);
   //These contains all the messages that we've to send to the LLM, as llm sends responses from it's side, we
   //also have to add them in llmMessages so that we can ask follow up questions and ask it to make some changes
   //to our website.
@@ -49,7 +51,7 @@ export default function ResultsPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [url, setUrl] = useState("");
   // const [collectedBlocks, setCollectedBlocks] = useState<string[]>([]);
-  const [currentFilePath, setCurrentFilePath] = useState<any>();
+  const [currentFilePath, setCurrentFilePath] = useState<string>();
 
   useEffect(() => {
     if (!currentFilePath) return;
@@ -229,7 +231,11 @@ export default function ResultsPage() {
   //     .replace(/\b(npm\s+run\s+dev)\b/g, ""); // Unwanted leftover commands
   // }
 
-  async function getLLMResponse(prompts: any) {
+  async function getLLMResponse(prompts: LLMmessage[]) {
+    //   `<boltAction type="file" filePath="app.js">
+    //   file content here
+    //  </boltAction>`
+
     const response = await fetch(`${BACKEND_URL}/chat`, {
       method: "POST",
       headers: {
@@ -243,7 +249,6 @@ export default function ResultsPage() {
     }
 
     let buffer = "";
-    let buffer2 = "";
     const reader = response.body.getReader();
     let currentFilePath: string = "";
     const decoder = new TextDecoder();
@@ -254,7 +259,6 @@ export default function ResultsPage() {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer2 += decoder.decode(value, { stream: true });
       buffer += decoder.decode(value, { stream: true });
 
       // 1. Process <boltAction> start tags
@@ -370,17 +374,20 @@ export default function ResultsPage() {
       })
     );
 
+    //We need to update the llm messages and store all the user prompts in order to maintain the context of the conversation.
+
     setllmMessages((x) => {
       return [
         ...x,
         {
           role: "assistant",
-          content: buffer2,
+          content: buffer,
         },
       ];
     });
   }
 
+  //This function cleans up any leftover boltAction tags from the code of a particular file.
   function cleanBoltActionTags(code: string): string {
     // More comprehensive tag cleaning
     return code
@@ -406,6 +413,8 @@ export default function ResultsPage() {
     setActiveTab("preview");
   }
 
+  //This function right here is responsible for fetching the template files that are common across all of the react projects
+  //so that the LLM won't have to generate these again & again.
   async function getTemplate() {
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt,
@@ -435,7 +444,6 @@ export default function ResultsPage() {
     console.log(llmMessages);
 
     //Update the steps state variable.
-
     const parsedData = generateSteps(uiPrompts[0]);
     setSteps(
       parsedData.map((step) => {
@@ -452,10 +460,10 @@ export default function ResultsPage() {
   useEffect(() => {
     //First of all get the template from the backend according to the user's prompt.
     getTemplate();
-
     //Then, send request to the LLM with the template and other information to generate other files too.
   }, []);
 
+  //This handles the generation of files whenever new steps are added, this handles the state management.
   useEffect(() => {
     //console.log("triggered Set files");
     const generatedFiles = steps
@@ -469,11 +477,6 @@ export default function ResultsPage() {
     //console.log(generatedFiles);
 
     setFiles(generatedFiles);
-
-    //It's causing conflictin while streaming and selecting the correct file, so comment this out.
-    // if (generatedFiles.length > 0) {
-    //   setSelectedFile(generatedFiles[0]);
-    // }
   }, [steps]);
 
   //Run an effect to create the correct folder structure for web containers.
@@ -492,6 +495,7 @@ export default function ResultsPage() {
     setActiveTab("code");
   };
 
+  //Handles the updates of the code in a file that already exists.
   const handleContentChange = (newContent: string) => {
     if (selectedFile) {
       const updatedFiles = files.map((file) =>
@@ -533,10 +537,6 @@ export default function ResultsPage() {
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    //Add further logic here to ask follow up questions.
-                    //The new message that gets created here, also need to be added to the llm messages, so that
-                    //we can just send request to the LLM with that and it responds properly to our follow up
-                    //prompts and changes.
                     const newMessage = {
                       role: "user",
                       content: followUpPrompt,

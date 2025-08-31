@@ -1,6 +1,7 @@
 import { WebContainer } from "@webcontainer/api";
 import { useEffect, useState } from "react";
 
+//This hook initializes the web container instance.
 export const useWebContainer = () => {
   const [webcontainer, setWebcontainer] = useState<WebContainer>();
 

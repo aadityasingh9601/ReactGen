@@ -98,25 +98,25 @@ export default function TerminalComponent({
   //   main();
   // }, [webContainer]);
 
-  async function interactiveTerminal() {
-    const shell = webContainer?.spawn("jsh");
-    //Every webContainer process has a output property.
+  // async function interactiveTerminal() {
+  //   const shell = webContainer?.spawn("jsh");
+  //   //Every webContainer process has a output property.
 
-    shell?.output.pipeTo(
-      new WritableStream({
-        write(data) {
-          terminal.current.write(data);
-        },
-      })
-    );
+  //   shell?.output.pipeTo(
+  //     new WritableStream({
+  //       write(data) {
+  //         terminal.current.write(data);
+  //       },
+  //     })
+  //   );
 
-    // Pipe terminal input to shell
-    const input = shell?.input.getWriter();
+  //   // Pipe terminal input to shell
+  //   const input = shell?.input.getWriter();
 
-    terminal.current.onData((data: string) => {
-      input.write(data);
-    });
-  }
+  //   terminal.current.onData((data: string) => {
+  //     input.write(data);
+  //   });
+  // }
 
   useEffect(() => {
     const main = async () => {

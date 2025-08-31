@@ -50,7 +50,7 @@ app.post("/template", async (req, res) => {
   });
 
   const llmRes = completion.choices[0].message.content;
-  console.log(llmRes);
+  //console.log(llmRes);
 
   if (llmRes === "react") {
     res.json({
@@ -120,3 +120,6 @@ app.post("/chat", async (req, res) => {
   return;
 });
 
+app.listen(3000, () => {
+  console.log("Listening on port 3000");
+});
