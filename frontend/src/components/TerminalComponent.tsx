@@ -1,5 +1,5 @@
 // src/components/Terminal.jsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
@@ -8,16 +8,15 @@ import { Rnd } from "react-rnd";
 
 interface TerminalComponentProps {
   webContainer?: WebContainer;
-  setPreviewUrl: any;
+  setPreviewUrl: (url: string) => void;
 }
 
 export default function TerminalComponent({
   webContainer,
   setPreviewUrl,
 }: TerminalComponentProps) {
-  const terminalRef = useRef(null);
-  const terminal = useRef(null);
-  const [installOutput, setInstallOutput] = useState(""); // State to hold npm install output
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const terminal = useRef<Terminal | null>(null);
 
   useEffect(() => {
     const setupTerminal = async () => {
@@ -33,8 +32,8 @@ export default function TerminalComponent({
       });
 
       const fitAddon = new FitAddon();
-      terminal.current.loadAddon(fitAddon);
-      terminal.current.open(terminalRef.current);
+      terminal.current!.loadAddon(fitAddon);
+      terminal.current!.open(terminalRef.current!);
       fitAddon.fit();
     };
 
@@ -120,35 +119,46 @@ export default function TerminalComponent({
 
   useEffect(() => {
     const main = async () => {
-      const installProcess = await webContainer?.spawn("npm", ["install"]);
+      if (!webContainer) return;
 
-      const installExitCode = await installProcess?.exit;
+      const installProcess = await webContainer.spawn("npm", ["install"]);
+
+      installProcess.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            terminal.current?.write(data);
+          },
+        })
+      );
+
+      const installExitCode = await installProcess.exit;
 
       if (installExitCode !== 0) {
         throw new Error("Unable to run npm install");
       }
 
-      let currentOutput = "";
+      const shell = await webContainer.spawn("jsh");
 
-      //Pipe(Print or send) the responses to terminal.
-      installProcess?.output.pipeTo(
+      shell.output.pipeTo(
         new WritableStream({
           write(data) {
-            terminal.current.write(data);
-            currentOutput += data;
-            setInstallOutput(currentOutput);
+            terminal.current?.write(data);
           },
         })
       );
 
-      webContainer?.on("server-ready", (port, url) => {
+      const input = shell.input.getWriter();
+      terminal.current?.onData((data: string) => {
+        input.write(data);
+      });
+
+      webContainer.on("server-ready", (_port, url) => {
         setPreviewUrl(url);
       });
     };
 
-    //interactiveTerminal();
-
     main();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webContainer]);
 
   return (

@@ -23,7 +23,7 @@ app.use(
 );
 
 const client = new OpenAI({
-  apiKey: process.env["OPENAI_API_KEY"], // This is the default and can be omitted
+  apiKey: process.env["AI_API_KEY"], // This is the default and can be omitted
 });
 
 app.post("/template", async (req, res) => {

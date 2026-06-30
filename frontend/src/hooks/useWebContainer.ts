@@ -14,6 +14,7 @@ export const useWebContainer = () => {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     main();
   }, []);
 

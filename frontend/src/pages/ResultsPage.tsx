@@ -35,7 +35,7 @@ export default function ResultsPage() {
   const [files, setFiles] = useState<FileData[]>([]);
   //console.log(files);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
-  const [prompt, setPrompt] = useState(location.state);
+  const [prompt] = useState(location.state);
   const [followUpPrompt, setfollowUpPrompt] = useState("");
   const [llmMessages, setllmMessages] = useState<LLMmessage[]>([]);
   //These contains all the messages that we've to send to the LLM, as llm sends responses from it's side, we
@@ -48,16 +48,22 @@ export default function ResultsPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>("code");
   const [steps, setSteps] = useState<Step[]>([]);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep] = useState(0);
   const [url, setUrl] = useState("");
   // const [collectedBlocks, setCollectedBlocks] = useState<string[]>([]);
   const [currentFilePath, setCurrentFilePath] = useState<string>();
+
+  const handleFileSelect = (file: FileData) => {
+    setSelectedFile(file);
+    setActiveTab("code");
+  };
 
   useEffect(() => {
     if (!currentFilePath) return;
 
     const file = files.find((f) => f.path === currentFilePath);
     if (file) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       handleFileSelect(file);
     }
   }, [files, currentFilePath]);
@@ -232,9 +238,7 @@ export default function ResultsPage() {
   // }
 
   async function getLLMResponse(prompts: LLMmessage[]) {
-    //   `<boltAction type="file" filePath="app.js">
-    //   file content here
-    //  </boltAction>`
+    /* eslint-disable react-hooks/immutability */
 
     const response = await fetch(`${BACKEND_URL}/chat`, {
       method: "POST",
@@ -385,6 +389,7 @@ export default function ResultsPage() {
         },
       ];
     });
+    /* eslint-enable react-hooks/immutability */
   }
 
   //This function cleans up any leftover boltAction tags from the code of a particular file.
@@ -458,24 +463,21 @@ export default function ResultsPage() {
   }
 
   useEffect(() => {
-    //First of all get the template from the backend according to the user's prompt.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     getTemplate();
-    //Then, send request to the LLM with the template and other information to generate other files too.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  //This handles the generation of files whenever new steps are added, this handles the state management.
   useEffect(() => {
-    //console.log("triggered Set files");
     const generatedFiles = steps
       ?.filter((step) => step.type === "file")
       .map((step) => ({
-        type: step.type,
+        type: step.type as "file",
         path: step.title,
         content: step.code,
       }));
 
-    //console.log(generatedFiles);
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFiles(generatedFiles);
   }, [steps]);
 
@@ -488,12 +490,6 @@ export default function ResultsPage() {
 
     webContainer?.mount(wcFolderStructure);
   }, [files, webContainer]);
-
-  const handleFileSelect = (file: FileData) => {
-    setSelectedFile(file);
-    //console.log(file);
-    setActiveTab("code");
-  };
 
   //Handles the updates of the code in a file that already exists.
   const handleContentChange = (newContent: string) => {

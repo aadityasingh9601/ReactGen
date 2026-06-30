@@ -24,7 +24,8 @@ export function generateSteps(data: string): Step[] {
   let match;
 
   while ((match = actionRegex.exec(data)) !== null) {
-    let [_, type, filePath, content] = match;
+    // eslint-disable-next-line prefer-const
+    let [, type, filePath, content] = match;
 
     // Normalize "shell" to "command"
     if (type === "shell") {

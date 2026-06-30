@@ -37,7 +37,7 @@ export interface CodeViewerProps {
 
 export interface ExecutionStepsProps {
   steps: Step[];
-  currentStep: any;
+  currentStep: number;
 }
 
 export interface FileExplorerProps {

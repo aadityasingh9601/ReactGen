@@ -13,7 +13,7 @@ export default defineConfig({
     //These headers are needed because WebContainer requires SharedArrayBuffer, which, in turn, requires
     // your website to be cross-origin isolated.
     headers: {
-      "Cross-Origin-Embedder-Policy": " require-corp",
+      "Cross-Origin-Embedder-Policy": "require-corp",
       "Cross-Origin-Opener-Policy": "same-origin",
     },
   },

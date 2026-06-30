@@ -1,4 +1,3 @@
-import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Code as CodeXml, Sun, Moon } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
