@@ -1,0 +1,1 @@
+{"root":["./src/constants.ts","./src/index.ts","./src/prompt.ts","./src/stripIndents.ts","./src/defaults/node.ts","./src/defaults/react.ts"],"version":"5.9.3"}
