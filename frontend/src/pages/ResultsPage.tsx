@@ -53,6 +53,38 @@ export default function ResultsPage() {
   // const [collectedBlocks, setCollectedBlocks] = useState<string[]>([]);
   const [currentFilePath, setCurrentFilePath] = useState<string>();
 
+  const [leftPanelWidth, setLeftPanelWidth] = useState(320);
+  const [explorerWidth, setExplorerWidth] = useState(240);
+  const [terminalHeight, setTerminalHeight] = useState(200);
+  const [terminalCollapsed, setTerminalCollapsed] = useState(true);
+
+  const startResize = (
+    e: React.MouseEvent,
+    target: "left" | "explorer"
+  ) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth =
+      target === "left" ? leftPanelWidth : explorerWidth;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - startX;
+      if (target === "left") {
+        setLeftPanelWidth(Math.max(200, Math.min(600, startWidth + delta)));
+      } else {
+        setExplorerWidth(Math.max(150, Math.min(400, startWidth + delta)));
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
   const handleFileSelect = (file: FileData) => {
     setSelectedFile(file);
     setActiveTab("code");
@@ -253,139 +285,86 @@ export default function ResultsPage() {
     }
 
     let buffer = "";
+    let fullResponse = "";
     const reader = response.body.getReader();
-    let currentFilePath: string = "";
     const decoder = new TextDecoder();
-    let insideBoltAction = false;
-    let codeAccumulator = "";
+
+    function createOrUpdateStep(
+      filePath: string,
+      code: string,
+      completed: boolean
+    ) {
+      setSteps((prev) => {
+        const exists = prev.some((s) => s.title === filePath);
+        const step: Step = {
+          id: crypto.randomUUID(),
+          title: filePath,
+          description: "Streaming file",
+          type: "file",
+          icon: null,
+          completed,
+          expanded: false,
+          code,
+        };
+        if (exists) return prev.map((s) => (s.title === filePath ? step : s));
+        return [...prev, step];
+      });
+      setCurrentFilePath(filePath);
+    }
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
+      const text = decoder.decode(value, { stream: true });
+      fullResponse += text;
+      buffer += text;
 
-      // 1. Process <boltAction> start tags
-      const startTagRegex = /<boltAction\s+type="file"\s+filePath="([^"]+)">/;
-      const startTagMatch = buffer.match(startTagRegex);
+      // Keep extracting complete file actions until none remain
+      while (true) {
+        const startTagRegex =
+          /<boltAction\s+type="file"\s+filePath="([^"]+)">/;
+        const startMatch = buffer.match(startTagRegex);
+        if (!startMatch) break;
 
-      if (startTagMatch && !insideBoltAction) {
-        insideBoltAction = true;
-        currentFilePath = startTagMatch[1];
-        codeAccumulator = ""; // Reset code accumulator for new file
+        const contentStart = startMatch.index! + startMatch[0].length;
+        const endTagStr = "</boltAction>";
+        const endIndex = buffer.indexOf(endTagStr, contentStart);
 
-        setSteps((prevSteps) => {
-          const newStep: Step = {
-            id: crypto.randomUUID(),
-            title: currentFilePath,
-            description: "Streaming file",
-            type: "file",
-            icon: null,
-            completed: false,
-            expanded: false,
-            code: "",
-          };
+        if (endIndex === -1) {
+          // Incomplete — show partial content for live preview
+          const rawPartial = buffer.slice(contentStart);
 
-          const stepExists = prevSteps.some(
-            (step) => step.title === currentFilePath
+          // Strip incomplete end tag artifacts (e.g. </bol, </boltAction without >)
+          const safePartial = rawPartial.replace(
+            /<\/(?:bolt(?:Action)?)>?$/g,
+            ""
           );
 
-          if (stepExists) {
-            return prevSteps.map((step) =>
-              step.title === currentFilePath ? newStep : step
-            );
-          }
-
-          return [...prevSteps, newStep];
-        });
-
-        setCurrentFilePath(currentFilePath);
-
-        // Remove the start tag from buffer
-        buffer = buffer.slice(startTagMatch.index! + startTagMatch[0].length);
-      }
-
-      // 2. Process </boltAction> end tags
-      const endTagMatch = buffer.match(/([\s\S]*?)<\/boltAction>/);
-
-      if (insideBoltAction && endTagMatch && currentFilePath) {
-        const codeChunk = endTagMatch[1];
-
-        // Add the final chunk to our accumulator
-        codeAccumulator += codeChunk;
-
-        // Clean any remaining tag content that might be in the code
-        const cleanedCode = cleanBoltActionTags(codeAccumulator);
-
-        // Update the step with the complete code
-        setSteps((prevSteps) =>
-          prevSteps.map((step) =>
-            step.title === currentFilePath
-              ? {
-                  ...step,
-                  code: cleanedCode, // Use cleaned code
-                  completed: true,
-                }
-              : step
-          )
-        );
-
-        // Clean up state and buffer
-        buffer = buffer.slice(endTagMatch.index! + endTagMatch[0].length);
-        insideBoltAction = false;
-        currentFilePath = "";
-        codeAccumulator = "";
-        continue;
-      }
-
-      // 3. Accumulate code chunks while inside <boltAction>
-      if (insideBoltAction && currentFilePath) {
-        // Look for potential closing tag fragments
-        const closingTagIndex = buffer.indexOf("</boltAction");
-
-        if (closingTagIndex >= 0) {
-          // If we find part of a closing tag, only take content before it
-          const safeContent = buffer.slice(0, closingTagIndex);
-          codeAccumulator += safeContent;
-          buffer = buffer.slice(closingTagIndex); // Keep potential tag for next iteration
-        } else {
-          // No closing tag fragment, safe to accumulate all buffer
-          codeAccumulator += buffer;
-          buffer = "";
+          const cleanedPartial = cleanBoltActionTags(safePartial);
+          createOrUpdateStep(startMatch[1], cleanedPartial, false);
+          break;
         }
 
-        // Clean any bolt action tags that might appear in the accumulated content
-        const cleanedAccumulator = cleanBoltActionTags(codeAccumulator);
+        // Complete file action found
+        const rawContent = buffer.slice(contentStart, endIndex);
+        const cleanedContent = cleanBoltActionTags(rawContent);
+        createOrUpdateStep(startMatch[1], cleanedContent, true);
 
-        // Update the step with accumulated code so far
-        setSteps((prevSteps) =>
-          prevSteps.map((step) =>
-            step.title === currentFilePath
-              ? {
-                  ...step,
-                  code: cleanedAccumulator,
-                }
-              : step
-          )
-        );
+        // Remove processed content from buffer
+        buffer = buffer.slice(endIndex + endTagStr.length);
       }
     }
 
-    //Marked all as completed once finished.
-    setSteps((prevSteps) =>
-      prevSteps.map((step) => {
-        return { ...step, completed: true };
-      })
-    );
-
-    //We need to update the llm messages and store all the user prompts in order to maintain the context of the conversation.
+    // Mark all remaining incomplete steps as completed
+    setSteps((prev) => prev.map((s) => ({ ...s, completed: true })));
 
     setllmMessages((x) => {
       return [
         ...x,
         {
           role: "assistant",
-          content: buffer,
+          content: fullResponse,
         },
       ];
     });
@@ -394,21 +373,19 @@ export default function ResultsPage() {
 
   //This function cleans up any leftover boltAction tags from the code of a particular file.
   function cleanBoltActionTags(code: string): string {
-    // More comprehensive tag cleaning
     return code
-      .replace(/^```[\w\d]*\s*\n?/gm, "") // Markdown start fences
-      .replace(/\n?```\s*$/gm, "") // Markdown end fences
-      .replace(/```[\w\d]*\s*\n?/g, "") // Fences in middle
+      .replace(/^```[\w\d]*\s*\n?/gm, "")
+      .replace(/\n?```\s*$/gm, "")
+      .replace(/```[\w\d]*\s*\n?/g, "")
       .replace(/\n?```/g, "")
-      .replace(/<boltArtifact(?:\s+[^>]*)?>[\s\S]*?<boltAction/g, "<boltAction") // Remove boltArtifact start tag and content before boltAction
-      .replace(/<\/boltAction>[\s\S]*?<\/boltArtifact>/g, "</boltAction>") // Remove content between end tags
-      .replace(/<boltAction\s+[^>]*>/g, "") // <boltAction ...>
+      .replace(/<boltArtifact(?:\s+[^>]*)?>[\s\S]*?<boltAction/g, "<boltAction")
+      .replace(/<\/boltAction>[\s\S]*?<\/boltArtifact>/g, "</boltAction>")
+      .replace(/<boltAction\s+[^>]*>/g, "")
       .replace(/<\/boltAction>/g, "")
       .replace(/<boltAction>/g, "")
-      .replace(/<\/boltAction>/g, "")
-      .replace(/<boltArtifact(?:\s+[^>]*)?>/g, "") // More robust boltArtifact opening tag removal
-      .replace(/<\/boltArtifact>/g, "") // boltArtifact closing tag
-      .replace(/\b(npm\s+run\s+dev)\b/g, "") // Unwanted leftover commands
+      .replace(/<boltArtifact(?:\s+[^>]*)?>/g, "")
+      .replace(/<\/boltArtifact>/g, "")
+      .replace(/\b(npm\s+run\s+dev)\b/g, "")
       .trim();
   }
 
