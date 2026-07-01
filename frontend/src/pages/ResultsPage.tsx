@@ -482,140 +482,148 @@ export default function ResultsPage() {
   };
 
   return (
-    <>
-      {/* <div className="bg-blue-300">{JSON.stringify(llmResponse)}</div> */}
+    <div className="h-[calc(100vh-64px)] overflow-hidden">
+      <div id="results-container" className="flex h-full">
+        {/* Left panel: Execution Steps & Files Overview */}
+        <div
+          className="relative bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex-shrink-0 overflow-hidden h-full flex flex-col"
+          style={{ width: leftPanelWidth }}
+        >
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+              Generated from prompt:
+            </h2>
+            <p className="text-slate-600 dark:text-slate-300 mt-1 italic line-clamp-2">
+              {prompt}
+            </p>
+          </div>
 
-      {/* <div className="bg-blue-200">{JSON.stringify(answer)}</div> */}
-      <div className="h-[calc(100vh-64px)] overflow-hidden">
-        <div id="results-container" className="flex h-full relative">
-          {/* Left panel: Execution Steps & Files Overview */}
-          <div className="relative bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 w-[25%]">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                Generated from prompt:
-              </h2>
-              <p className="text-slate-600 dark:text-slate-300 mt-1 italic">
-                {prompt}
-              </p>
-            </div>
-
+          <div className="flex-1 overflow-y-auto min-h-0">
             <ExecutionSteps steps={steps} currentStep={currentStep} />
-
-            <div className="flex px-4 rounded-md w-full  absolute bottom-0">
-              <textarea
-                placeholder="Follow up prompts..."
-                value={followUpPrompt}
-                onChange={(e) => {
-                  setfollowUpPrompt(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const newMessage = {
-                      role: "user",
-                      content: followUpPrompt,
-                    };
-
-                    setfollowUpPrompt("");
-
-                    //Send the old message plus the new message also.
-                    getLLMResponse([...llmMessages, newMessage]);
-
-                    //Update the llmMessages for further requests.
-                    setllmMessages((prevM) => {
-                      return [...prevM, newMessage];
-                    });
-                    console.log(llmMessages);
-                  }
-                }}
-                className="w-full rounded-md h-20 bg-slate-900 border-grey-100 p-2 text-white resize-none"
-              ></textarea>
-            </div>
           </div>
 
-          {/* Resizer */}
-          <div className="w-2 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark"></div>
+          <div className="px-4 py-2 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
+            <textarea
+              placeholder="Follow up prompts..."
+              value={followUpPrompt}
+              onChange={(e) => {
+                setfollowUpPrompt(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const newMessage = {
+                    role: "user",
+                    content: followUpPrompt,
+                  };
 
-          {/* Right panel: File Explorer & Code/Preview Viewer */}
-          <div className="bg-slate-50 dark:bg-slate-900 flex flex-col w-[75%]">
-            <div className="h-full flex">
-              {/* File Explorer sidebar */}
-              <div className="w-64 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                    File Explorer
-                  </h2>
-                </div>
-                <FileExplorer
-                  files={files}
-                  selectedFile={selectedFile}
-                  onSelectFile={handleFileSelect}
+                  setfollowUpPrompt("");
+
+                  getLLMResponse([...llmMessages, newMessage]);
+
+                  setllmMessages((prevM) => {
+                    return [...prevM, newMessage];
+                  });
+                  console.log(llmMessages);
+                }
+              }}
+              className="w-full rounded-md h-[72px] bg-slate-900 p-2 text-white resize-none text-sm"
+            ></textarea>
+          </div>
+        </div>
+
+        {/* Resizer 1 */}
+        <div
+          className="w-[4px] bg-slate-200 dark:bg-slate-700 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors"
+          onMouseDown={(e) => startResize(e, "left")}
+        />
+
+        {/* File Explorer sidebar */}
+        <div
+          className="border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto flex-shrink-0 h-full"
+          style={{ width: explorerWidth }}
+        >
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+              File Explorer
+            </h2>
+          </div>
+          <FileExplorer
+            files={files}
+            selectedFile={selectedFile}
+            onSelectFile={handleFileSelect}
+          />
+        </div>
+
+        {/* Resizer 2 */}
+        <div
+          className="w-[4px] bg-slate-200 dark:bg-slate-700 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors"
+          onMouseDown={(e) => startResize(e, "explorer")}
+        />
+
+        {/* Code/Preview + Terminal */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 min-w-0 h-full">
+          {/* Tabs */}
+          <div className="flex relative border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0">
+            <button
+              onClick={() => setActiveTab("code")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === "code"
+                  ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <Code size={16} />
+              Code
+            </button>
+            <button
+              onClick={() => setActiveTab("preview")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === "preview"
+                  ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <Globe size={16} />
+              Preview
+            </button>
+            <button
+              onClick={() => downloadFiles(files)}
+              className="absolute flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 right-0 hover:text-slate-200"
+            >
+              <Download size={18} />
+              Download files
+            </button>
+          </div>
+
+          {/* Code/Preview content */}
+          <div className="flex-1 overflow-hidden min-h-0">
+            {activeTab === "code" ? (
+              selectedFile ? (
+                <CodeViewer
+                  file={selectedFile}
+                  onContentChange={handleContentChange}
                 />
-              </div>
-
-              {/* Code/Preview viewer */}
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Tabs */}
-                <div className="flex relative border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <button
-                    onClick={() => setActiveTab("code")}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                      activeTab === "code"
-                        ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    <Code size={16} />
-                    Code
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("preview")}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                      activeTab === "preview"
-                        ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    <Globe size={16} />
-                    Preview
-                  </button>
-                  {/* Add a download button to download the existing files in the file Explorer, so that we can use
-                  them as much as we like. */}
-                  <button
-                    onClick={() => downloadFiles(files)}
-                    className="absolute flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-400 right-0 hover:text-slate-200"
-                  >
-                    <Download size={18} />
-                    Download files
-                  </button>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
+                  <p>Select a file to view its contents</p>
                 </div>
-
-                {/* Content area */}
-                <div className="flex-1 overflow-hidden">
-                  {activeTab === "code" ? (
-                    selectedFile ? (
-                      <CodeViewer
-                        file={selectedFile}
-                        onContentChange={handleContentChange}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
-                        <p>Select a file to view its contents</p>
-                      </div>
-                    )
-                  ) : (
-                    <Preview url={url} />
-                  )}
-                </div>
-              </div>
-            </div>
+              )
+            ) : (
+              <Preview url={url} />
+            )}
           </div>
 
+          {/* Terminal — inline in layout, no more absolute positioning */}
           <TerminalComponent
             setPreviewUrl={setPreviewUrl}
             webContainer={webContainer}
+            height={terminalHeight}
+            onHeightChange={setTerminalHeight}
+            collapsed={terminalCollapsed}
+            onToggleCollapse={() => setTerminalCollapsed((c) => !c)}
           />
         </div>
       </div>
-    </>
+    </div>
   );
 }

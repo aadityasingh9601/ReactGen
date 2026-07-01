@@ -1,11 +1,11 @@
 import { useRef, useEffect } from "react";
-import Editor, { OnMount } from "@monaco-editor/react";
+import Editor from "@monaco-editor/react";
 import { useTheme } from "../context/ThemeContext";
 import { CodeViewerProps } from "../types";
 
 export default function CodeViewer({ file, onContentChange }: CodeViewerProps) {
   const { theme } = useTheme();
-  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const editorRef = useRef<any>(null);
 
   const getLanguage = (filename: string): string => {
     const ext = filename.split(".").pop() || "";
@@ -26,19 +26,24 @@ export default function CodeViewer({ file, onContentChange }: CodeViewerProps) {
     return languageMap[ext.toLowerCase()] || "plaintext";
   };
 
-  const handleEditorMount: OnMount = (editor) => {
+  const handleEditorMount = (editor: any) => {
     editorRef.current = editor;
   };
 
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    const pos = editor.getScrollPosition();
-    const scrollHeight = editor.getScrollHeight();
-    const height = editor.getLayoutInfo().height;
-    if (scrollHeight - pos.scrollTop - height < 30) {
-      editor.revealLine(editor.getModel()?.getLineCount() ?? 1);
-    }
+    try {
+      const pos = editor.getScrollPosition();
+      const scrollHeight = editor.getScrollHeight();
+      const height = editor.getLayoutInfo().height;
+      if (scrollHeight - pos.scrollTop - height < 30) {
+        const model = editor.getModel();
+        if (model) {
+          editor.revealLine(model.getLineCount());
+        }
+      }
+    } catch {}
   }, [file.content]);
 
   const handleEditorChange = (value: string | undefined) => {

@@ -26,7 +26,7 @@ const REQUEST_TIMEOUT = 30000;
 
 const client = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env["OPENROUTER_API_KEY"],
+  apiKey: process.env["OPENROUTER_API_KEY_2"],
   timeout: REQUEST_TIMEOUT,
   maxRetries: 0,
   defaultHeaders: {
@@ -172,8 +172,6 @@ app.post("/chat", async (req, res) => {
     }
 
     console.log(`Total time: ${Date.now() - startTime}ms`);
-    console.log("=== FULL LLM RESPONSE START ===");
-    console.log("=== FULL LLM RESPONSE END ===");
   } catch (error: any) {
     console.error("All chat models failed:", error?.message || error);
     res.write(
