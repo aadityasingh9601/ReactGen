@@ -12,9 +12,9 @@ export default function CodeViewer({ file, onContentChange }: CodeViewerProps) {
 
     const languageMap: Record<string, string> = {
       js: "javascript",
-      jsx: "javascript",
+      jsx: "javascriptreact",
       ts: "typescript",
-      tsx: "typescript",
+      tsx: "typescriptreact",
       css: "css",
       html: "html",
       json: "json",
@@ -26,8 +26,23 @@ export default function CodeViewer({ file, onContentChange }: CodeViewerProps) {
     return languageMap[ext.toLowerCase()] || "plaintext";
   };
 
-  const handleEditorMount = (editor: any) => {
+  const handleEditorMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+      jsxImportSource: "react",
+      target: monaco.languages.typescript.ScriptTarget.ESNext,
+      module: monaco.languages.typescript.ModuleKind.ESNext,
+      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.Bundler,
+      allowNonTsExtensions: true,
+      allowJs: true,
+    });
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+      jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+      jsxImportSource: "react",
+      target: monaco.languages.typescript.ScriptTarget.ESNext,
+      allowNonTsExtensions: true,
+    });
   };
 
   useEffect(() => {
