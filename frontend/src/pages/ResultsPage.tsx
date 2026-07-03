@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import FileExplorer from "../components/FileExplorer";
 import ExecutionSteps from "../components/ExecutionSteps";
@@ -27,11 +27,9 @@ interface LLMmessage {
 }
 
 export default function ResultsPage() {
-  //console.log("rendered");
   const webContainer = useWebContainer();
 
   const location = useLocation();
-  // console.log(location);
   const [files, setFiles] = useState<FileData[]>([]);
   //console.log(files);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
@@ -57,15 +55,16 @@ export default function ResultsPage() {
   const [explorerWidth, setExplorerWidth] = useState(240);
   const [terminalHeight, setTerminalHeight] = useState(200);
   const [terminalCollapsed, setTerminalCollapsed] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+  const hasMounted = useRef(false);
+  const syncedFiles = useRef(new Set<string>());
+  const [llmComplete, setLlmComplete] = useState(false);
+  const [startProcesses, setStartProcesses] = useState(false);
 
-  const startResize = (
-    e: React.MouseEvent,
-    target: "left" | "explorer"
-  ) => {
+  const startResize = (e: React.MouseEvent, target: "left" | "explorer") => {
     e.preventDefault();
     const startX = e.clientX;
-    const startWidth =
-      target === "left" ? leftPanelWidth : explorerWidth;
+    const startWidth = target === "left" ? leftPanelWidth : explorerWidth;
 
     const handleMouseMove = (e: MouseEvent) => {
       const delta = e.clientX - startX;
@@ -100,177 +99,9 @@ export default function ResultsPage() {
     }
   }, [files, currentFilePath]);
 
-  // async function getLLMResponse(prompts: any) {
-  //   const response = await fetch(`${BACKEND_URL}/chat`, {
-  //     method: "POST",
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //     },
-  //     body: JSON.stringify({ messages: prompts }),
-  //   });
-
-  //   if (!response.ok || !response.body) {
-  //     throw new Error("Failed to get response stream");
-  //   }
-
-  //   let buffer = "";
-  //   let buffer2 = "";
-  //   const reader = response.body.getReader();
-  //   let currentFilePath: string = "";
-  //   const decoder = new TextDecoder();
-  //   let insideBoltAction = false;
-  //   let codeAccumulator = "";
-
-  //   while (true) {
-  //     const { done, value } = await reader.read();
-  //     if (done) break;
-
-  //     buffer2 += decoder.decode(value, { stream: true });
-  //     buffer += decoder.decode(value, { stream: true });
-
-  //     // 1. Process <boltAction> start tags
-  //     const startTagRegex = /<boltAction\s+type="file"\s+filePath="([^"]+)">/;
-  //     const startTagMatch = buffer.match(startTagRegex);
-
-  //     if (startTagMatch && !insideBoltAction) {
-  //       insideBoltAction = true;
-  //       currentFilePath = startTagMatch[1];
-  //       codeAccumulator = ""; // Reset code accumulator for new file
-
-  //       setSteps((prevSteps) => {
-  //         const newStep: Step = {
-  //           id: crypto.randomUUID(),
-  //           title: currentFilePath,
-  //           description: "Streaming file",
-  //           type: "file",
-  //           icon: null,
-  //           completed: false,
-  //           expanded: false,
-  //           code: "",
-  //         };
-
-  //         const stepExists = prevSteps.some(
-  //           (step) => step.title === currentFilePath
-  //         );
-
-  //         if (stepExists) {
-  //           return prevSteps.map((step) =>
-  //             step.title === currentFilePath ? newStep : step
-  //           );
-  //         }
-
-  //         return [...prevSteps, newStep];
-  //       });
-
-  //       setCurrentFilePath(currentFilePath);
-
-  //       // Remove the start tag from buffer
-  //       buffer = buffer.slice(startTagMatch.index! + startTagMatch[0].length);
-  //     }
-
-  //     // 2. Process </boltAction> end tags
-  //     const endTagMatch = buffer.match(/([\s\S]*?)<\/boltAction>/);
-
-  //     if (insideBoltAction && endTagMatch && currentFilePath) {
-  //       const codeChunk = endTagMatch[1];
-
-  //       // Add the final chunk to our accumulator
-  //       codeAccumulator += codeChunk;
-
-  //       // Clean any remaining tag content that might be in the code
-  //       const cleanedCode = cleanBoltActionTags(codeAccumulator);
-
-  //       // Update the step with the complete code
-  //       setSteps((prevSteps) =>
-  //         prevSteps.map((step) =>
-  //           step.title === currentFilePath
-  //             ? {
-  //                 ...step,
-  //                 code: cleanedCode, // Use cleaned code
-  //                 completed: true,
-  //               }
-  //             : step
-  //         )
-  //       );
-
-  //       // Clean up state and buffer
-  //       buffer = buffer.slice(endTagMatch.index! + endTagMatch[0].length);
-  //       insideBoltAction = false;
-  //       currentFilePath = "";
-  //       codeAccumulator = "";
-  //       continue;
-  //     }
-
-  //     // 3. Accumulate code chunks while inside <boltAction>
-  //     if (insideBoltAction && currentFilePath) {
-  //       // Look for potential closing tag fragments
-  //       const closingTagIndex = buffer.indexOf("</boltAction");
-
-  //       if (closingTagIndex >= 0) {
-  //         // If we find part of a closing tag, only take content before it
-  //         const safeContent = buffer.slice(0, closingTagIndex);
-  //         codeAccumulator += safeContent;
-  //         buffer = buffer.slice(closingTagIndex); // Keep potential tag for next iteration
-  //       } else {
-  //         // No closing tag fragment, safe to accumulate all buffer
-  //         codeAccumulator += buffer;
-  //         buffer = "";
-  //       }
-
-  //       // Clean any bolt action tags that might appear in the accumulated content
-  //       const cleanedAccumulator = cleanBoltActionTags(codeAccumulator);
-
-  //       // Update the step with accumulated code so far
-  //       setSteps((prevSteps) =>
-  //         prevSteps.map((step) =>
-  //           step.title === currentFilePath
-  //             ? {
-  //                 ...step,
-  //                 code: cleanedAccumulator,
-  //               }
-  //             : step
-  //         )
-  //       );
-  //     }
-  //   }
-
-  //   setllmResponse(buffer2);
-
-  //   //Marked all as completed once finished.
-  //   setSteps((prevSteps) =>
-  //     prevSteps.map((step) => {
-  //       return { ...step, completed: true };
-  //     })
-  //   );
-
-  //   setllmMessages((x) => {
-  //     return [
-  //       ...x,
-  //       {
-  //         role: "assistant",
-  //         content: buffer2,
-  //       },
-  //     ];
-  //   });
-  // }
-
-  // function cleanBoltActionTags(code: string): string {
-  //   return code
-  //     .replace(/^```[\w\d]*\s*\n?/gm, "") // Markdown start fences
-  //     .replace(/\n?```\s*$/gm, "") // Markdown end fences
-  //     .replace(/```[\w\d]*\s*\n?/g, "") // Fences in middle
-  //     .replace(/\n?```/g, "")
-  //     .replace(/<boltAction\s+[^>]*>/g, "") // <boltAction ...>
-  //     .replace(/<\/boltAction>/g, "")
-  //     .replace(/<boltAction>/g, "")
-  //     .replace(/<\/boltAction>/g, "")
-  //     .replace(/<boltArtifact>/g, "")
-  //     .replace(/<boltArtifact>/g, "")
-  //     .replace(/\b(npm\s+run\s+dev)\b/g, ""); // Unwanted leftover commands
-  // }
-
   async function getLLMResponse(prompts: LLMmessage[]) {
     /* eslint-disable react-hooks/immutability */
+    setCurrentFilePath(undefined);
 
     const response = await fetch(`${BACKEND_URL}/chat`, {
       method: "POST",
@@ -292,7 +123,7 @@ export default function ResultsPage() {
     function createOrUpdateStep(
       filePath: string,
       code: string,
-      completed: boolean
+      completed: boolean,
     ) {
       setSteps((prev) => {
         const exists = prev.some((s) => s.title === filePath);
@@ -322,8 +153,7 @@ export default function ResultsPage() {
 
       // Keep extracting complete file actions until none remain
       while (true) {
-        const startTagRegex =
-          /<boltAction\s+type="file"\s+filePath="([^"]+)">/;
+        const startTagRegex = /<boltAction\s+type="file"\s+filePath="([^"]+)">/;
         const startMatch = buffer.match(startTagRegex);
         if (!startMatch) break;
 
@@ -338,7 +168,7 @@ export default function ResultsPage() {
           // Strip incomplete end tag artifacts (e.g. </bol, </boltAction without >)
           const safePartial = rawPartial.replace(
             /<\/(?:bolt(?:Action)?)>?$/g,
-            ""
+            "",
           );
 
           const cleanedPartial = cleanBoltActionTags(safePartial);
@@ -368,6 +198,10 @@ export default function ResultsPage() {
         },
       ];
     });
+
+    setLlmComplete(true);
+    setCurrentFilePath(undefined);
+    setActiveTab("preview")
     /* eslint-enable react-hooks/immutability */
   }
 
@@ -390,8 +224,8 @@ export default function ResultsPage() {
   }
 
   function setPreviewUrl(url: string) {
+    console.log("called preview URL function", url);
     setUrl(url);
-    //Navigate to the preveiw tab as soon as our website is ready.
     setActiveTab("preview");
   }
 
@@ -430,7 +264,7 @@ export default function ResultsPage() {
     setSteps(
       parsedData.map((step) => {
         return { ...step, completed: true };
-      })
+      }),
     );
 
     //console.log(parsedData);
@@ -445,6 +279,7 @@ export default function ResultsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  //Update the files once the steps are set.
   useEffect(() => {
     const generatedFiles = steps
       ?.filter((step) => step.type === "file")
@@ -460,13 +295,111 @@ export default function ResultsPage() {
 
   //Run an effect to create the correct folder structure for web containers.
   useEffect(() => {
-    const orignalFiles = files;
+    if (
+      !webContainer ||
+      files.length === 0 ||
+      hasMounted.current ||
+      !llmComplete
+    )
+      return;
 
-    const wcFolderStructure = convertToWebContainerStructure(orignalFiles);
-    //console.log(wcFolderStructure);
+    const doMount = async () => {
+      const wcFolderStructure = convertToWebContainerStructure(files);
+      await webContainer.mount(wcFolderStructure);
+      hasMounted.current = true;
+      files.forEach((f) => {
+        if (f.type === "file" && f.path) {
+          syncedFiles.current.add("/" + f.path);
+        }
+      });
+      setIsMounted(true);
+      setStartProcesses(true);
+    };
+    doMount();
+  }, [files, webContainer, llmComplete]);
 
-    webContainer?.mount(wcFolderStructure);
+  //Sync new files to WebContainer after initial mount (LLM-streamed files)
+  useEffect(() => {
+    //console.log("web container files updating function called");
+    if (!webContainer || !hasMounted.current) return;
+
+    files.forEach(async (file) => {
+      if (file.type !== "file" || !file.path) return;
+      const fullPath = "/" + file.path;
+      if (syncedFiles.current.has(fullPath)) return;
+      syncedFiles.current.add(fullPath);
+
+      try {
+        const dirPath = fullPath.substring(0, fullPath.lastIndexOf("/"));
+        if (dirPath) {
+          await webContainer.fs
+            .mkdir(dirPath, { recursive: true })
+            .catch(() => {});
+        }
+        await webContainer.fs.writeFile(fullPath, file.content || "");
+      } catch (error) {
+        console.error(`Failed to sync ${file.path}:`, error);
+      }
+    });
   }, [files, webContainer]);
+
+  //Run processes (npm install, npm run dev) after mount is complete and LLM response is done.
+  useEffect(() => {
+    if (!webContainer || !startProcesses) return;
+
+    const run = async () => {
+      console.log("Starting process execution...");
+
+      webContainer.on("server-ready", (port, url) => {
+        console.log("Port ->", port);
+        console.log("URL ->", url);
+        setPreviewUrl(url);
+      });
+
+      console.log("Running npm install...");
+      const installProcess = await webContainer.spawn("npm", ["install"]);
+      installProcess.output
+        .pipeTo(
+          new WritableStream({
+            write(data) {
+              console.log("npm install:", data);
+            },
+          }),
+        )
+        .catch(() => {});
+      const installExitCode = await installProcess.exit;
+      if (installExitCode !== 0) {
+        console.error("npm install failed with exit code", installExitCode);
+        return;
+      }
+
+      console.log("Starting dev server...");
+
+      // Register listener BEFORE spawn to eliminate any race condition
+
+      const server = await webContainer.spawn("npm", ["run", "dev"]);
+
+      // Consume output to prevent backpressure from blocking the process
+      server.output
+        .pipeTo(
+          new WritableStream({
+            write(data) {
+              console.log("npm run dev:", data);
+            },
+          }),
+        )
+        .catch(() => {});
+
+      // Log if the dev server exits unexpectedly
+      server.exit.then((code) => {
+        console.log("Dev server exited with code", code);
+      });
+    };
+
+    run().catch((err) => {
+      console.error("Process execution error:", err);
+    });
+  }, [webContainer, startProcesses]);
 
   //Handles the updates of the code in a file that already exists.
   const handleContentChange = (newContent: string) => {
@@ -474,7 +407,7 @@ export default function ResultsPage() {
       const updatedFiles = files.map((file) =>
         file.path === selectedFile.path
           ? { ...file, content: newContent }
-          : file
+          : file,
       );
       setFiles(updatedFiles);
       setSelectedFile({ ...selectedFile, content: newContent });
@@ -615,8 +548,6 @@ export default function ResultsPage() {
 
           {/* Terminal — inline in layout, no more absolute positioning */}
           <TerminalComponent
-            setPreviewUrl={setPreviewUrl}
-            webContainer={webContainer}
             height={terminalHeight}
             onHeightChange={setTerminalHeight}
             collapsed={terminalCollapsed}

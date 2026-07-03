@@ -1,4 +1,6 @@
 export default function Preview({ url }: { url: string }) {
+  console.log("rendered again!");
+  console.log("URL ->",url);
   return (
     <div style={{ height: "100%", width: "100%" }}>
       {url === "" && (
@@ -8,10 +10,12 @@ export default function Preview({ url }: { url: string }) {
       )}
       {url && (
         <iframe
+          key={url}
           title="Website Preview"
           src={url}
           height={"100%"}
           width={"100%"}
+          allow="cross-origin-isolated"
         />
       )}
     </div>

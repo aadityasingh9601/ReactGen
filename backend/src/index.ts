@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import OpenAI from "openai";
+import { OpenRouter } from "@openrouter/sdk";
 import { getSystemPrompt } from "./prompt";
 import { basePrompt } from "./prompt";
 import { nodeBasePrompt } from "./defaults/node";
@@ -24,16 +24,22 @@ app.use(
 
 const REQUEST_TIMEOUT = 30000;
 
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env["OPENROUTER_API_KEY_2"],
-  timeout: REQUEST_TIMEOUT,
-  maxRetries: 0,
-  defaultHeaders: {
-    "HTTP-Referer": "http://localhost:5173",
-    "X-Title": "ReactGen",
-  },
+const client = new OpenRouter({
+  apiKey: process.env["OPENROUTER_API_KEY_4"],
+  timeoutMs: REQUEST_TIMEOUT,
+  httpReferer: "http://localhost:5173",
+  appTitle: "ReactGen",
+  retryConfig: { strategy: "none" },
 });
+
+(async () => {
+  try {
+    const keyInfo = await client.apiKeys.getCurrentKeyMetadata();
+    console.log("OpenRouter API Key Info:", JSON.stringify(keyInfo, null, 2));
+  } catch (err) {
+    console.error("Failed to get OpenRouter API key info:", err);
+  }
+})();
 
 const FREE_MODELS = {
   template: [
@@ -45,12 +51,12 @@ const FREE_MODELS = {
     "openai/gpt-oss-120b:free",
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
+    "poolside/laguna-m.1:free",
+    "cohere/north-mini-code:free",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
     "nvidia/nemotron-3-nano-30b-a3b:free",
-    "poolside/laguna-m.1:free",
-    "cohere/north-mini-code:free",
   ],
 };
 
@@ -81,21 +87,23 @@ app.post("/template", async (req, res) => {
   const completion = await createCompletionWithFallback(
     FREE_MODELS.template,
     (model) =>
-      client.chat.completions.create({
-        model,
-        temperature: 0.2,
-        max_tokens: 300,
-        messages: [
-          {
-            role: "system",
-            content: `Identify the userPrompt as either react or node project that the user wants. Return either "node" or "react" in your response nothing extra. Return a one-word response only, nothing else.`,
-          },
-          { role: "user", content: userPrompt },
-        ],
+      client.chat.send({
+        chatRequest: {
+          model,
+          temperature: 0.2,
+          maxTokens: 300,
+          messages: [
+            {
+              role: "system",
+              content: `Identify the userPrompt as either react or node project that the user wants. Return either "node" or "react" in your response nothing extra. Return a one-word response only, nothing else.`,
+            },
+            { role: "user", content: userPrompt },
+          ],
+        },
       }),
   );
 
-  const llmRes = completion.choices[0].message.content;
+  const llmRes = (completion as any).choices[0].message.content;
   console.log("llmRes", llmRes);
 
   if (llmRes === "react") {
@@ -140,18 +148,20 @@ app.post("/chat", async (req, res) => {
       FREE_MODELS.chat,
       async (model) => {
         console.log(`[${new Date().toISOString()}] Trying model: ${model}`);
-        const result = await client.chat.completions.create({
-          model,
-          temperature: 0.2,
-          max_tokens: 4096,
-          messages: [
-            ...messages,
-            {
-              role: "system",
-              content: getSystemPrompt(),
-            },
-          ],
-          stream: true,
+        const result = await client.chat.send({
+          chatRequest: {
+            model,
+            temperature: 0.2,
+            maxTokens: 4096,
+            messages: [
+              ...messages,
+              {
+                role: "system",
+                content: getSystemPrompt(),
+              },
+            ],
+            stream: true,
+          },
         });
         console.log(result);
         console.log(`[${new Date().toISOString()}] Model ${model} succeeded`);
@@ -162,7 +172,7 @@ app.post("/chat", async (req, res) => {
     for await (const chunk of completion) {
       const content = chunk.choices?.[0]?.delta?.content;
       if (content) {
-        console.log(content);
+        //console.log(content);
         res.write(content);
       }
       // Final chunk includes usage stats

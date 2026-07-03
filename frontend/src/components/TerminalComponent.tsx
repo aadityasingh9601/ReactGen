@@ -1,13 +1,10 @@
 import { useEffect, useRef, useCallback } from "react";
-import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import { ChevronDown, ChevronUp, Terminal as TerminalIcon } from "lucide-react";
 
 interface TerminalComponentProps {
-  webContainer?: WebContainer;
-  setPreviewUrl: (url: string) => void;
   height: number;
   onHeightChange: (newHeight: number) => void;
   collapsed: boolean;
@@ -15,8 +12,6 @@ interface TerminalComponentProps {
 }
 
 export default function TerminalComponent({
-  webContainer,
-  setPreviewUrl,
   height,
   onHeightChange,
   collapsed,
@@ -56,45 +51,14 @@ export default function TerminalComponent({
   }, []);
 
   useEffect(() => {
-    if (terminalInstance.current && terminalRef.current && fitAddonRef.current) {
+    if (
+      terminalInstance.current &&
+      terminalRef.current &&
+      fitAddonRef.current
+    ) {
       requestAnimationFrame(() => fitAddonRef.current?.fit());
     }
   }, [height, collapsed]);
-
-  useEffect(() => {
-    const main = async () => {
-      if (!webContainer) return;
-
-      const installProcess = await webContainer.spawn("npm", ["install"]);
-      installProcess.output.pipeTo(
-        new WritableStream({
-          write(data) { terminalInstance.current?.write(data); },
-        })
-      );
-
-      const installExitCode = await installProcess.exit;
-      if (installExitCode !== 0) {
-        throw new Error("Unable to run npm install");
-      }
-
-      const shell = await webContainer.spawn("jsh");
-      shell.output.pipeTo(
-        new WritableStream({
-          write(data) { terminalInstance.current?.write(data); },
-        })
-      );
-
-      const input = shell.input.getWriter();
-      terminalInstance.current?.onData((data: string) => {
-        input.write(data);
-      });
-
-      webContainer.on("server-ready", (_port, url) => {
-        setPreviewUrl(url);
-      });
-    };
-    main();
-  }, [webContainer]);
 
   const handleResizeMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -116,7 +80,7 @@ export default function TerminalComponent({
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [height, onHeightChange]
+    [height, onHeightChange],
   );
 
   return (
@@ -141,10 +105,7 @@ export default function TerminalComponent({
             className="h-[3px] cursor-n-resize hover:bg-blue-500 bg-transparent relative z-10 flex-shrink-0"
             onMouseDown={handleResizeMouseDown}
           />
-          <div
-            ref={terminalRef}
-            className="bg-black flex-1 overflow-hidden"
-          />
+          <div ref={terminalRef} className="bg-black flex-1 overflow-hidden" />
         </>
       )}
     </div>

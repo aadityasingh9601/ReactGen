@@ -1,20 +1,22 @@
 import { WebContainer } from "@webcontainer/api";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-//This hook initializes the web container instance.
 export const useWebContainer = () => {
   const [webcontainer, setWebcontainer] = useState<WebContainer>();
+  const booted = useRef(false);
 
   async function main() {
-    // WARNING
-    // Please note that the boot method can be called only once and only a single WebContainer instance
-    // can be created.
-    const webcontainerInstance = await WebContainer.boot();
-    setWebcontainer(webcontainerInstance);
+    try {
+      const webcontainerInstance = await WebContainer.boot();
+      setWebcontainer(webcontainerInstance);
+    } catch (error) {
+      console.error("Failed to boot WebContainer:", error);
+    }
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (booted.current) return;
+    booted.current = true;
     main();
   }, []);
 
