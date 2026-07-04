@@ -33,7 +33,7 @@ export default function ResultsPage() {
   const [files, setFiles] = useState<FileData[]>([]);
   //console.log(files);
   const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
-  const [prompt] = useState(location.state);
+  const [prompt] = useState(() => location.state || sessionStorage.getItem("reactgen_prompt") || "");
   const [followUpPrompt, setfollowUpPrompt] = useState("");
   const [llmMessages, setllmMessages] = useState<LLMmessage[]>([]);
   //These contains all the messages that we've to send to the LLM, as llm sends responses from it's side, we
@@ -60,6 +60,8 @@ export default function ResultsPage() {
   const syncedFiles = useRef(new Set<string>());
   const [llmComplete, setLlmComplete] = useState(false);
   const [startProcesses, setStartProcesses] = useState(false);
+  const [cacheSalt, setCacheSalt] = useState(0);
+  const CACHE_PREFIX = "reactgen_cache_";
 
   const startResize = (e: React.MouseEvent, target: "left" | "explorer") => {
     e.preventDefault();
@@ -200,6 +202,7 @@ export default function ResultsPage() {
     });
 
     setLlmComplete(true);
+    setCacheSalt(v => v + 1);
     setCurrentFilePath(undefined);
     setActiveTab("preview")
     /* eslint-enable react-hooks/immutability */
@@ -274,10 +277,45 @@ export default function ResultsPage() {
   }
 
   useEffect(() => {
+    if (!prompt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      getTemplate();
+      return;
+    }
+    const cached = localStorage.getItem(CACHE_PREFIX + prompt);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        setSteps(parsed.steps);
+        setllmMessages(parsed.llmMessages);
+        setLlmComplete(true);
+        setStartProcesses(true);
+        return;
+      } catch {
+        localStorage.removeItem(CACHE_PREFIX + prompt);
+      }
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     getTemplate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  //Save results to localStorage cache when generation completes.
+  useEffect(() => {
+    if (cacheSalt === 0 || !prompt) return;
+    try {
+      const cacheData = {
+        prompt,
+        steps,
+        llmMessages,
+        llmComplete: true,
+        startProcesses: true,
+      };
+      localStorage.setItem(CACHE_PREFIX + prompt, JSON.stringify(cacheData));
+    } catch {
+      console.warn("Failed to cache results to localStorage");
+    }
+  }, [cacheSalt, prompt, steps, llmMessages, llmComplete, startProcesses]);
 
   //Update the files once the steps are set.
   useEffect(() => {

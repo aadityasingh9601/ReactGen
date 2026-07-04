@@ -10,9 +10,9 @@ export default function HomePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
-
     setIsLoading(true);
     setIsLoading(false);
+    sessionStorage.setItem("reactgen_prompt", prompt);
     navigate("/results", { state: prompt });
   };
 
