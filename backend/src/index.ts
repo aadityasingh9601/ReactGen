@@ -25,7 +25,7 @@ app.use(
 const REQUEST_TIMEOUT = 30000;
 
 const client = new OpenRouter({
-  apiKey: process.env["OPENROUTER_API_KEY_4"],
+  apiKey: process.env["OPENROUTER_API_KEY_2"],
   timeoutMs: REQUEST_TIMEOUT,
   httpReferer: "http://localhost:5173",
   appTitle: "ReactGen",

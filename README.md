@@ -33,6 +33,7 @@ ReactGen is an AI-powered website builder that lets you generate, edit, and prev
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js (v18+ recommended)
 - npm
 - OpenAI API key (for backend)
@@ -40,6 +41,7 @@ ReactGen is an AI-powered website builder that lets you generate, edit, and prev
 ### Setup
 
 #### 1. Clone the repository
+
 ```bash
  git clone https://github.com/aadityasingh9601/ReactGen.git
 ```
@@ -58,18 +60,21 @@ ReactGen is an AI-powered website builder that lets you generate, edit, and prev
   ```
 
 #### 3. Configure environment variables
+
 - In `backend`, create a `.env` file with your OpenAI API key:
   ```env
   OPENAI_API_KEY=your-openai-key-here
   ```
 
 #### 4. Run the app
+
 - **Start the backend**
   ```bash
   cd backend
   npm run dev
   ```
 - **Start the frontend**
+
   ```bash
   cd ../frontend
   npm run dev
@@ -93,7 +98,9 @@ ReactGen is an AI-powered website builder that lets you generate, edit, and prev
 - `backend/` — Express server (handles AI prompt, project type detection, and OpenAI API calls)
 
 ## Contributing
+
 Pull requests and issues are welcome! Please open an issue to discuss your idea or bug before submitting a PR.
 
 ## License
+
 [MIT](LICENSE)
